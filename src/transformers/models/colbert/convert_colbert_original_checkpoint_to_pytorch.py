@@ -24,7 +24,8 @@ from transformers import BertConfig, ColBERTConfig, ColBERTContextEncoder, ColBE
 
 
 CheckpointState = collections.namedtuple(
-    "CheckpointState", ["batch", "arguments", "model_dict", "optimizer_dict", "epoch"]
+    "CheckpointState",
+    ["batch", "arguments", "model_dict", "optimizer_dict", "epoch"]
     # , "scheduler_dict", "offset", "encoder_params"]
 )
 
@@ -32,15 +33,15 @@ CheckpointState = collections.namedtuple(
 def load_states_from_checkpoint(model_file: str) -> CheckpointState:
     print("Reading saved model from %s", model_file)
     state_dict = torch.load(model_file, map_location=lambda s, l: default_restore_location(s, "cpu"))
-    for k in [('model_dict', 'model_state_dict'), ('optimizer_dict', 'optimizer_state_dict')]:
+    for k in [("model_dict", "model_state_dict"), ("optimizer_dict", "optimizer_state_dict")]:
         state_dict[k[0]] = state_dict.pop(k[-1], None)
     new_model_dict = OrderedDict()
-    for key, value in state_dict['model_dict'].items():
+    for key, value in state_dict["model_dict"].items():
         if key.startswith("bert."):
-            key = 'bert_model.' + key[5:]
+            key = "bert_model." + key[5:]
         # key = key.replace("bert_model.encoder", "bert_model")
         new_model_dict[key] = value
-    state_dict['model_dict'] = new_model_dict
+    state_dict["model_dict"] = new_model_dict
     for key in ["linear.weight"]:
         new_model_dict.pop(key)
     return CheckpointState(**state_dict)
@@ -134,13 +135,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "--type", type=str, 
+        "--type",
+        type=str,
         default="ctx_encoder",
-        help="Type of the component to convert: 'ctx_encoder', 'question_encoder' or 'reader'."
+        help="Type of the component to convert: 'ctx_encoder', 'question_encoder' or 'reader'.",
     )
     parser.add_argument(
         "--src",
-        default="/Users/songfeng/Downloads/colbert-60000.dnn",
+        default="/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints/colbert/colbert-60000.dnn",
         type=str,
         help="Path to the colbert checkpoint file.",
     )
@@ -148,7 +150,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     src_file = Path(args.src)
-    dest_dir = f"bconverted-{src_file.name}" if args.dest is None else args.dest
+    dest_dir = f"converted-{src_file.name}" if args.dest is None else args.dest
     dest_dir = Path(dest_dir)
     assert src_file.exists()
     assert (

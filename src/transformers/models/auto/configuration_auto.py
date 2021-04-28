@@ -243,6 +243,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("deberta", "DeBERTa"),
         ("layoutlm", "LayoutLM"),
         ("dpr", "DPR"),
+        ("colbert", "ColBERT"),
         ("rag", "RAG"),
         ("xlm-prophetnet", "XLMProphetNet"),
         ("prophetnet", "ProphetNet"),

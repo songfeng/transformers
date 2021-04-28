@@ -10,8 +10,9 @@ COLBERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "facebook/dpr-reader-multiset-base": "https://huggingface.co/facebook/dpr-reader-multiset-base/resolve/main/config.json",
 }
 
+
 class ColBERTConfig(PretrainedConfig):
-    model_type = "ColBERT"
+    model_type = "colbert"
     bert_model: str
     compression_dim: int = 768
     dropout: float = 0.0
