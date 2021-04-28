@@ -107,6 +107,7 @@ from ..distilbert.modeling_distilbert import (
     DistilBertModel,
 )
 from ..dpr.modeling_dpr import DPRQuestionEncoder
+from ..colbert.modeling_colbert import ColBERTQuestionEncoder
 from ..electra.modeling_electra import (
     ElectraForMaskedLM,
     ElectraForMultipleChoice,
@@ -297,6 +298,7 @@ from .configuration_auto import (
     DeiTConfig,
     DistilBertConfig,
     DPRConfig,
+    ColBERTConfig,
     ElectraConfig,
     EncoderDecoderConfig,
     FlaubertConfig,
@@ -387,6 +389,7 @@ MODEL_MAPPING = OrderedDict(
         (DebertaConfig, DebertaModel),
         (DebertaV2Config, DebertaV2Model),
         (DPRConfig, DPRQuestionEncoder),
+        (ColBERTConfig, ColBERTQuestionEncoder),
         (XLMProphetNetConfig, XLMProphetNetModel),
         (ProphetNetConfig, ProphetNetModel),
         (MPNetConfig, MPNetModel),

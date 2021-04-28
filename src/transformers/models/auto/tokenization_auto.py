@@ -161,6 +161,7 @@ if is_tokenizers_available():
     from ..convbert.tokenization_convbert_fast import ConvBertTokenizerFast
     from ..distilbert.tokenization_distilbert_fast import DistilBertTokenizerFast
     from ..dpr.tokenization_dpr_fast import DPRQuestionEncoderTokenizerFast
+    from ..colbert.tokenization_colbert_fast import ColBERTQuestionEncoderTokenizerFast
     from ..electra.tokenization_electra_fast import ElectraTokenizerFast
     from ..funnel.tokenization_funnel_fast import FunnelTokenizerFast
     from ..gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
@@ -192,6 +193,7 @@ else:
     ConvBertTokenizerFast = None
     DistilBertTokenizerFast = None
     DPRQuestionEncoderTokenizerFast = None
+    ColBERTQuestionEncoderTokenizerFast = None
     ElectraTokenizerFast = None
     FunnelTokenizerFast = None
     GPT2TokenizerFast = None
@@ -244,6 +246,7 @@ TOKENIZER_MAPPING = OrderedDict(
         (LxmertConfig, (LxmertTokenizer, LxmertTokenizerFast)),
         (LayoutLMConfig, (LayoutLMTokenizer, LayoutLMTokenizerFast)),
         (DPRConfig, (DPRQuestionEncoderTokenizer, DPRQuestionEncoderTokenizerFast)),
+        (ColBERTConfig, (ColBERTQuestionEncoderTokenizer, ColBERTQuestionEncoderTokenizerFast)),
         (SqueezeBertConfig, (SqueezeBertTokenizer, SqueezeBertTokenizerFast)),
         (BertConfig, (BertTokenizer, BertTokenizerFast)),
         (OpenAIGPTConfig, (OpenAIGPTTokenizer, OpenAIGPTTokenizerFast)),
