@@ -46,6 +46,7 @@ from callbacks_rag import (  # noqa: E402 # isort:skipq
 from distributed_pytorch_retriever import RagPyTorchDistributedRetriever  # noqa: E402 # isort:skip
 from utils_rag import (  # noqa: E402 # isort:skip
     calculate_exact_match,
+    calculate_bleu,
     flatten_list,
     get_git_info,
     is_rag_model,
@@ -127,6 +128,9 @@ class GenerativeQAModule(BaseTransformer):
         config = config_class.from_pretrained(hparams.model_name_or_path)
 
         # set retriever parameters
+        config.n_docs = hparams.n_docs
+        config.max_combined_length = hparams.max_combined_length or config.max_combined_length
+        config.max_source_length = hparams.max_source_length or config.max_source_length
         config.index_name = hparams.index_name or config.index_name
         config.passages_path = hparams.passages_path or config.passages_path
         config.index_path = hparams.index_path or config.index_path
@@ -312,7 +316,9 @@ class GenerativeQAModule(BaseTransformer):
         save_json(self.metrics, self.metrics_save_path)
 
     def calc_generative_metrics(self, preds, target) -> Dict:
-        return calculate_exact_match(preds, target)
+        d_metrics = calculate_exact_match(preds, target)
+        d_metrics.update(calculate_bleu(preds, target))
+        return d_metrics
 
     def _generative_step(self, batch: dict) -> dict:
         start_time = time.time()
@@ -389,6 +395,19 @@ class GenerativeQAModule(BaseTransformer):
         BaseTransformer.add_model_specific_args(parser, root_dir)
         add_generic_args(parser, root_dir)
         parser.add_argument(
+            "--segmentation",
+            default="token",
+            type=str,
+            help="Document segmentation",
+        )
+        parser.add_argument(
+            "--max_combined_length",
+            default=512,
+            type=int,
+            help="The maximum total input sequence length after tokenization. Sequences longer "
+            "than this will be truncated, sequences shorter will be padded.",
+        )
+        parser.add_argument(
             "--max_source_length",
             default=128,
             type=int,
@@ -447,6 +466,12 @@ class GenerativeQAModule(BaseTransformer):
 
     @staticmethod
     def add_retriever_specific_args(parser):
+        parser.add_argument(
+            "--n_docs",
+            type=int,
+            default=5,
+            help="Number of documents to retrieve.",
+        )
         parser.add_argument(
             "--index_name",
             type=str,
