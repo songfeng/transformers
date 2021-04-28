@@ -1199,6 +1199,46 @@ class DPRReader:
         requires_backends(self, ["torch"])
 
 
+
+ColBERT_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST = None
+
+
+ColBERT_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST = None
+
+
+ColBERT_READER_PRETRAINED_MODEL_ARCHIVE_LIST = None
+
+
+class ColBERTContextEncoder:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+
+class ColBERTPretrainedContextEncoder:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+
+class ColBERTPretrainedQuestionEncoder:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+
+class ColBERTPretrainedReader:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+
+class ColBERTQuestionEncoder:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+
+class ColBERTReader:
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["torch"])
+
+
 ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST = None
 
 

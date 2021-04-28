@@ -36,6 +36,7 @@ from ..deberta_v2.configuration_deberta_v2 import DEBERTA_V2_PRETRAINED_CONFIG_A
 from ..deit.configuration_deit import DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, DeiTConfig
 from ..distilbert.configuration_distilbert import DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, DistilBertConfig
 from ..dpr.configuration_dpr import DPR_PRETRAINED_CONFIG_ARCHIVE_MAP, DPRConfig
+from ..colbert.configuration_colbert import COLBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, ColBERTConfig
 from ..electra.configuration_electra import ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP, ElectraConfig
 from ..encoder_decoder.configuration_encoder_decoder import EncoderDecoderConfig
 from ..flaubert.configuration_flaubert import FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, FlaubertConfig
@@ -186,6 +187,7 @@ CONFIG_MAPPING = OrderedDict(
         ("funnel", FunnelConfig),
         ("lxmert", LxmertConfig),
         ("dpr", DPRConfig),
+        ("colbert", ColBERTConfig),
         ("layoutlm", LayoutLMConfig),
         ("rag", RagConfig),
         ("tapas", TapasConfig),

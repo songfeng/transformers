@@ -32,6 +32,7 @@ from ..ctrl.tokenization_ctrl import CTRLTokenizer
 from ..deberta.tokenization_deberta import DebertaTokenizer
 from ..distilbert.tokenization_distilbert import DistilBertTokenizer
 from ..dpr.tokenization_dpr import DPRQuestionEncoderTokenizer
+from ..colbert.tokenization_dpr import ColBERTQuestionEncoderTokenizer
 from ..electra.tokenization_electra import ElectraTokenizer
 from ..flaubert.tokenization_flaubert import FlaubertTokenizer
 from ..fsmt.tokenization_fsmt import FSMTTokenizer
@@ -71,6 +72,7 @@ from .configuration_auto import (
     DebertaV2Config,
     DistilBertConfig,
     DPRConfig,
+    ColBERTConfig,
     ElectraConfig,
     EncoderDecoderConfig,
     FlaubertConfig,

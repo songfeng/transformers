@@ -177,6 +177,13 @@ _import_structure = {
         "DPRReaderOutput",
         "DPRReaderTokenizer",
     ],
+    "models.colbert": [
+        "ColBERTConfig",
+        "ColBERTContextEncoderTokenizer",
+        "ColBERTQuestionEncoderTokenizer",
+        "ColBERTReaderOutput",
+        "ColBERTReaderTokenizer",
+    ],
     "models.electra": ["ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP", "ElectraConfig", "ElectraTokenizer"],
     "models.encoder_decoder": ["EncoderDecoderConfig"],
     "models.flaubert": ["FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "FlaubertConfig", "FlaubertTokenizer"],
@@ -317,6 +324,9 @@ if is_tokenizers_available():
     _import_structure["models.distilbert"].append("DistilBertTokenizerFast")
     _import_structure["models.dpr"].extend(
         ["DPRContextEncoderTokenizerFast", "DPRQuestionEncoderTokenizerFast", "DPRReaderTokenizerFast"]
+    )
+    _import_structure["models.colbert"].extend(
+        ["ColBERTContextEncoderTokenizerFast", "ColBERTQuestionEncoderTokenizerFast", "ColBERTReaderTokenizerFast"]
     )
     _import_structure["models.electra"].append("ElectraTokenizerFast")
     _import_structure["models.funnel"].append("FunnelTokenizerFast")
@@ -645,6 +655,19 @@ if is_torch_available():
             "DPRPretrainedReader",
             "DPRQuestionEncoder",
             "DPRReader",
+        ]
+    )
+    _import_structure["models.colbert"].extend(
+        [
+            "ColBERT_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "ColBERT_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "ColBERT_READER_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "ColBERTContextEncoder",
+            "ColBERTPretrainedContextEncoder",
+            "ColBERTPretrainedQuestionEncoder",
+            "ColBERTPretrainedReader",
+            "ColBERTQuestionEncoder",
+            "ColBERTReader",
         ]
     )
     _import_structure["models.electra"].extend(
@@ -1528,6 +1551,14 @@ if TYPE_CHECKING:
         DPRReaderOutput,
         DPRReaderTokenizer,
     )
+    from .models.colbert import (
+        COLBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ColBERTConfig,
+        ColBERTContextEncoderTokenizer,
+        ColBERTQuestionEncoderTokenizer,
+        ColBERTReaderOutput,
+        ColBERTReaderTokenizer,
+    )
     from .models.electra import ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP, ElectraConfig, ElectraTokenizer
     from .models.encoder_decoder import EncoderDecoderConfig
     from .models.flaubert import FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, FlaubertConfig, FlaubertTokenizer
@@ -1661,6 +1692,7 @@ if TYPE_CHECKING:
         from .models.convbert import ConvBertTokenizerFast
         from .models.distilbert import DistilBertTokenizerFast
         from .models.dpr import DPRContextEncoderTokenizerFast, DPRQuestionEncoderTokenizerFast, DPRReaderTokenizerFast
+        from .models.colbert import ColBERTContextEncoderTokenizerFast, ColBERTQuestionEncoderTokenizerFast, ColBERTReaderTokenizerFast
         from .models.electra import ElectraTokenizerFast
         from .models.funnel import FunnelTokenizerFast
         from .models.gpt2 import GPT2TokenizerFast
