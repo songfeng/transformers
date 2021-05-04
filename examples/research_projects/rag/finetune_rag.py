@@ -107,7 +107,7 @@ class CustomAccel(DDPAccelerator):
 class GenerativeQAModule(BaseTransformer):
     mode = "generative_qa"
     loss_names = ["loss"]
-    metric_names = ["em"]
+    metric_names = ["em", "bleu"]
     val_metric = "em"
 
     def __init__(self, hparams, **kwargs):

@@ -98,6 +98,7 @@ class RagConfig(PretrainedConfig):
         doc_sep=" // ",
         segmentation="token",
         n_docs=5,
+        segmentation="token",
         max_combined_length=300,
         retrieval_vector_size=768,
         retrieval_batch_size=8,

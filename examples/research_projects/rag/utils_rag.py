@@ -10,6 +10,7 @@ from collections import Counter
 from logging import getLogger
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List
+from sacrebleu import corpus_bleu
 
 import git
 import torch
@@ -222,6 +223,12 @@ def calculate_exact_match(output_lns: List[str], reference_lns: List[str]) -> Di
     if len(output_lns) > 0:
         em /= len(output_lns)
     return {"em": em}
+
+
+def calculate_bleu(output_lns, refs_lns) -> dict:
+    """Uses sacrebleu's corpus_bleu implementation."""
+    return {"bleu": round(corpus_bleu(output_lns, [refs_lns]).score, 4)}
+
 
 
 def is_rag_model(model_prefix):
