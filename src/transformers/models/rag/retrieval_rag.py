@@ -216,7 +216,7 @@ class HFIndexBase(Index):
         return [self.dataset[doc_ids[i].tolist()] for i in range(doc_ids.shape[0])]
 
     def get_top_docs(self, question_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray]:
-        _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
+        scores, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
@@ -474,9 +474,14 @@ class RagRetriever:
                 doc_title = doc_title[:-1]
             if prefix is None:
                 prefix = ""
-            out = (prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string).replace(
-                "  ", " "
-            )
+            if self.config.segmentation == "token":
+                out = (
+                    prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string
+                ).replace("  ", " ")
+            else:
+                out = (
+                    prefix + input_string.strip()[: self.config.max_source_length] + self.config.doc_sep + doc_text
+                ).replace("  ", " ")
             return out
 
         rag_input_strings = [

@@ -96,6 +96,7 @@ class RagConfig(PretrainedConfig):
         decoder_start_token_id=None,
         title_sep=" / ",
         doc_sep=" // ",
+        segmentation="token",
         n_docs=5,
         max_combined_length=300,
         retrieval_vector_size=768,
@@ -114,7 +115,7 @@ class RagConfig(PretrainedConfig):
         output_retrieved=False,
         use_cache=True,
         forced_eos_token_id=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             bos_token_id=bos_token_id,
@@ -148,6 +149,7 @@ class RagConfig(PretrainedConfig):
         self.title_sep = title_sep
         self.doc_sep = doc_sep
         self.n_docs = n_docs
+        self.segmentation = segmentation
         self.max_combined_length = max_combined_length
 
         self.dataset = dataset
