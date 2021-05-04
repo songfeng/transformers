@@ -97,6 +97,7 @@ class RagConfig(PretrainedConfig):
         title_sep=" / ",
         doc_sep=" // ",
         n_docs=5,
+        segmentation="token",
         max_combined_length=300,
         retrieval_vector_size=768,
         retrieval_batch_size=8,
@@ -148,6 +149,7 @@ class RagConfig(PretrainedConfig):
         self.title_sep = title_sep
         self.doc_sep = doc_sep
         self.n_docs = n_docs
+        self.segmentation = segmentation
         self.max_combined_length = max_combined_length
 
         self.dataset = dataset

@@ -474,9 +474,14 @@ class RagRetriever:
                 doc_title = doc_title[:-1]
             if prefix is None:
                 prefix = ""
-            out = (prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string).replace(
-                "  ", " "
-            )
+            if self.config.segmentation == "token":
+                out = (
+                    prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string
+                ).replace("  ", " ")
+            else:
+                out = (
+                    prefix + input_string.strip()[: self.config.max_source_length] + self.config.doc_sep + doc_text
+                ).replace("  ", " ")
             return out
 
         rag_input_strings = [
