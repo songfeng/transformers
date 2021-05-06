@@ -96,7 +96,6 @@ class RagConfig(PretrainedConfig):
         decoder_start_token_id=None,
         title_sep=" / ",
         doc_sep=" // ",
-        segmentation="token",
         n_docs=5,
         segmentation="token",
         max_combined_length=300,
