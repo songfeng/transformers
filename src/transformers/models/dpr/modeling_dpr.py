@@ -109,6 +109,7 @@ class DPRQuestionEncoderOutput(ModelOutput):
     """
 
     pooler_output: torch.FloatTensor
+    last_hidden_state: Optional[Tuple[torch.FloatTensor]] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
 
@@ -585,7 +586,8 @@ class DPRQuestionEncoder(DPRPretrainedQuestionEncoder):
         if not return_dict:
             return outputs[1:]
         return DPRQuestionEncoderOutput(
-            pooler_output=outputs.pooler_output, hidden_states=outputs.hidden_states, attentions=outputs.attentions
+            pooler_output=outputs.pooler_output, last_hidden_state=outputs.last_hidden_state,
+            hidden_states=outputs.hidden_states, attentions=outputs.attentions
         )
 
 

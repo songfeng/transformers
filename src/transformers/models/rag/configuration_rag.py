@@ -99,6 +99,8 @@ class RagConfig(PretrainedConfig):
         n_docs=5,
         segmentation="token",
         max_combined_length=300,
+        multihandle=True,
+        scoring_func="linear",
         retrieval_vector_size=768,
         retrieval_batch_size=8,
         dataset="wiki_dpr",
@@ -151,6 +153,9 @@ class RagConfig(PretrainedConfig):
         self.n_docs = n_docs
         self.segmentation = segmentation
         self.max_combined_length = max_combined_length
+
+        self.multihandle = multihandle
+        self.scoring_func = scoring_func
 
         self.dataset = dataset
         self.dataset_split = dataset_split

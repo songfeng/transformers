@@ -1069,6 +1069,12 @@ class RagTokenForGeneration(RagPreTrainedModel):
         question_encoder: Optional[PreTrainedModel] = None,
         generator: Optional[PreTrainedModel] = None,
         retriever: Optional = None,
+        scorer = torch.nn.Sequential(
+                torch.nn.Linear(2, 2),
+                torch.nn.ReLU(),
+                torch.nn.Linear(2, 1),
+                torch.nn.ReLU()
+            ),
         **kwargs,
     ):
         assert config is not None or (
@@ -1126,6 +1132,10 @@ class RagTokenForGeneration(RagPreTrainedModel):
     @property
     def question_encoder(self):
         return self.rag.question_encoder
+
+    @property
+    def scorer(self):
+        return self.rag.scorer
 
     @staticmethod
     def _reorder_cache(past, beam_idx):
@@ -1285,11 +1295,20 @@ class RagTokenForGeneration(RagPreTrainedModel):
             generator_cross_attentions=outputs.generator_cross_attentions,
         )
 
+    @staticmethod
+    def mean_pool(vector: torch.LongTensor):
+        return vector.sum(axis=0) / vector.shape[0]
+
+    @staticmethod
+    def get_attn_mask(tokens_tensor: torch.LongTensor) -> torch.tensor:
+        return tokens_tensor != 0
+
     @torch.no_grad()
     def generate(
         self,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.LongTensor] = None,
+        token_type_ids: Optional[torch.LongTensor] = None,
         context_input_ids=None,
         context_attention_mask=None,
         doc_scores=None,
@@ -1443,10 +1462,32 @@ class RagTokenForGeneration(RagPreTrainedModel):
 
         # retrieve docs
         if self.retriever is not None and context_input_ids is None:
-            question_hidden_states = self.question_encoder(input_ids, attention_mask=attention_mask)[0]
+            # question_hidden_states = self.question_encoder(input_ids, attention_mask=attention_mask)[0]
+            dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
+            combined_out = dpr_out.pooler_output
+            ## Split the dpr sequence output
+            sequence_output = dpr_out.last_hidden_state
+            attn_mask = self.get_attn_mask(input_ids)
+            ## Split sequence output, and pool each sequence
+            seq_out_0 = []  # last turn, if query; doc structure if passage
+            seq_out_1 = []  # dial history, if query; passage text if passage
+            for i in range(sequence_output.shape[0]):
+                seq_out_masked = sequence_output[i, attn_mask[i], :]
+                segment_masked = token_type_ids[i, attn_mask[i]]
+                seq_out_masked_0 = seq_out_masked[segment_masked == 0, :]
+                seq_out_masked_1 = seq_out_masked[segment_masked == 1, :]
+                ### perform pooling
+                seq_out_0.append(self.mean_pool(seq_out_masked_0))
+                seq_out_1.append(self.mean_pool(seq_out_masked_1))
+
+            pooled_output_0 = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
+            pooled_output_1 = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
+
             out = self.retriever(
                 input_ids,
-                question_hidden_states.cpu().detach().to(torch.float32).numpy(),
+                combined_out.cpu().detach().to(torch.float32).numpy(),
+                pooled_output_0.cpu().detach().to(torch.float32).numpy(),
+                pooled_output_1.cpu().detach().to(torch.float32).numpy(),
                 prefix=self.generator.config.prefix,
                 n_docs=n_docs,
                 return_tensors="pt",

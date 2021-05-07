@@ -19,6 +19,7 @@ import pickle
 import time
 from typing import Iterable, List, Optional, Tuple
 
+import torch
 import numpy as np
 
 from ...file_utils import cached_path, is_datasets_available, is_faiss_available, is_remote_url, requires_backends
@@ -215,14 +216,75 @@ class HFIndexBase(Index):
     def get_doc_dicts(self, doc_ids: np.ndarray) -> List[dict]:
         return [self.dataset[doc_ids[i].tolist()] for i in range(doc_ids.shape[0])]
 
-    def get_top_docs(self, question_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray]:
+    def get_top_docs(self, question_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         scores, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
             if len(vectors[i]) < n_docs:
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
-        return np.array(ids), np.array(vectors)  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
+        return np.array(ids), np.array(vectors), np.array(scores)  # shapes (batch_size, n_docs), (batch_size, n_docs, d) and (batch_size, n_docs)
+
+    def get_top_docs_multihandle(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray,
+                                 scoring_func, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        total_docs = len(self.dataset)
+        scores_0, ids_0 = self.dataset.search_batch("embeddings", question_hidden_states, 500)
+        scores_1, ids_1 = self.dataset.search_batch("embeddings", history_hidden_states, 500)
+
+        final_scores = []
+        final_ids = []
+        for i in range(len(ids_0)):
+            ids_0_i, scores_0_i = ids_0[i], scores_0[i]
+            ids_1_i, scores_1_i = ids_1[i], scores_1[i]
+
+            ## common ids between question and history
+            common_ids = set(ids_0_i).intersection(set(ids_1_i))
+            if len(common_ids) < n_docs:
+                print("Error: Common ids - {}".format(len(common_ids)))
+
+            ## only keep ids and scores that are common between question and history
+            new_ids_0_i = []
+            new_scores_0_i = []
+            for j in range(len(ids_0_i)):
+                if ids_0_i[j] in common_ids:
+                    new_ids_0_i.append(ids_0_i[j])
+                    new_scores_0_i.append(scores_0_i[j])
+            ids_0_i, scores_0_i = new_ids_0_i, new_scores_0_i
+
+            new_ids_1_i = []
+            new_scores_1_i = []
+            for j in range(len(ids_1_i)):
+                if ids_1_i[j] in common_ids:
+                    new_ids_1_i.append(ids_1_i[j])
+                    new_scores_1_i.append(scores_1_i[j])
+            ids_1_i, scores_1_i = new_ids_1_i, new_scores_1_i
+
+            ## sort by ids
+            q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_0_i, scores_0_i)))
+            h_doc_ids, h_doc_scores = zip(*sorted(zip(ids_1_i, scores_1_i)))
+
+            assert q_doc_ids == h_doc_ids
+
+            ## Combine scores using scoring function
+            rescored_ids = []
+            rescored_scores = []
+            for id, q_score, h_score in zip(q_doc_ids, q_doc_scores, h_doc_scores):
+                rescored_ids.append(id)
+                inp = torch.Tensor([q_score, h_score])
+                rescored_scores.append(scoring_func(inp).tolist())
+
+            rescored_scores, rescored_ids = zip(*sorted(zip(rescored_scores, rescored_ids), reverse=True))
+            rescored_scores, rescored_ids = list(rescored_scores), list(rescored_ids)
+
+            final_ids.append(rescored_ids[:n_docs])
+            final_scores.append(rescored_scores[:n_docs])
+
+        docs = [self.dataset[[i for i in indices if i >= 0]] for indices in final_ids]
+        vectors = [doc["embeddings"] for doc in docs]
+        for i in range(len(vectors)):
+            if len(vectors[i]) < n_docs:
+                vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
+        return np.array(final_ids), np.array(vectors), np.array(final_scores)  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
 
 class CanonicalHFIndex(HFIndexBase):
@@ -508,24 +570,43 @@ class RagRetriever:
     def _chunk_tensor(self, t: Iterable, chunk_size: int) -> List[Iterable]:
         return [t[i : i + chunk_size] for i in range(0, len(t), chunk_size)]
 
-    def _main_retrieve(self, question_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _main_retrieve(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        def linear(a: List[int]):
+            return sum(a)
+
+        def linear2(a: List[int]):
+            return a[0] + 0.5 * a[1]
+
+        def nonlinear(nnet: torch.nn.Module, a):
+            return nnet(a)
+
         question_hidden_states_batched = self._chunk_tensor(question_hidden_states, self.batch_size)
         ids_batched = []
         vectors_batched = []
+        scores_batched = []
         for question_hidden_states in question_hidden_states_batched:
             start_time = time.time()
-            ids, vectors = self.index.get_top_docs(question_hidden_states, n_docs)
+            if self.config.multihandle:
+                if self.config.scoring_func == "linear":
+                    scoring_func = linear
+                else:
+                    scoring_func = nonlinear
+                ids, vectors, scores = self.index.get_top_docs_multihandle(question_hidden_states, history_hidden_states, scoring_func, n_docs)
+            else:
+                ids, vectors, scores = self.index.get_top_docs(question_hidden_states, n_docs)
             logger.debug(
                 f"index search time: {time.time() - start_time} sec, batch size {question_hidden_states.shape}"
             )
             ids_batched.extend(ids)
             vectors_batched.extend(vectors)
+            scores_batched.extend(scores)
         return (
             np.array(ids_batched),
             np.array(vectors_batched),
+            np.array(scores),
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def retrieve(self, question_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, List[dict]]:
+    def retrieve(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``.
 
@@ -545,13 +626,15 @@ class RagRetriever:
             - **doc_dicts** (:obj:`List[dict]`): The :obj:`retrieved_doc_embeds` examples per query.
         """
 
-        doc_ids, retrieved_doc_embeds = self._main_retrieve(question_hidden_states, n_docs)
-        return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
+        doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(question_hidden_states, history_hidden_states, n_docs)
+        return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids), doc_scores
 
     def __call__(
         self,
         question_input_ids: List[List[int]],
-        question_hidden_states: np.ndarray,
+        combined_hidden_states: List[List[int]],
+        current_hidden_states: np.ndarray,
+        history_hidden_states: np.ndarray,
         prefix=None,
         n_docs=None,
         return_tensors=None,
@@ -592,7 +675,7 @@ class RagRetriever:
 
         n_docs = n_docs if n_docs is not None else self.n_docs
         prefix = prefix if prefix is not None else self.config.generator.prefix
-        retrieved_doc_embeds, doc_ids, docs = self.retrieve(question_hidden_states, n_docs)
+        retrieved_doc_embeds, doc_ids, docs, doc_scores = self.retrieve(current_hidden_states, history_hidden_states, n_docs)
 
         input_strings = self.question_encoder_tokenizer.batch_decode(question_input_ids, skip_special_tokens=True)
         context_input_ids, context_attention_mask = self.postprocess_docs(
@@ -605,6 +688,7 @@ class RagRetriever:
                 "context_attention_mask": context_attention_mask,
                 "retrieved_doc_embeds": retrieved_doc_embeds,
                 "doc_ids": doc_ids,
+                "doc_scores": doc_scores,
             },
             tensor_type=return_tensors,
         )
