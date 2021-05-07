@@ -36,12 +36,15 @@ class RagFinetuneExampleTests(TestCasePlus):
 
         tmp_dir = self.get_auto_remove_tmp_dir()
         output_dir = os.path.join(tmp_dir, "output")
-        data_dir = os.path.join(tmp_dir, "data")
+        data_dir = "data"
         self._create_dummy_data(data_dir=data_dir)
 
         testargs = f"""
-                --data_dir {data_dir} \
-                --output_dir {output_dir} \
+                --data_dir data/dd_v2_grounding_token_sep \
+                --output_dir output \
+                --index_name custom \
+                --index_path {data_dir}/dd_knowledge_dataset/my_knowledge_dataset_hnsw_index.faiss \
+                --passages_path {data_dir}/dd_knowledge_dataset/my_knowledge_dataset \
                 --model_name_or_path facebook/rag-sequence-base \
                 --model_type rag_sequence \
                 --do_train \
@@ -76,21 +79,21 @@ class RagFinetuneExampleTests(TestCasePlus):
                 testargs.append("--fp16")
         else:
             testargs.append("--gpus=0")
-            testargs.append("--distributed_backend=ddp_cpu")
-            testargs.append("--num_processes=2")
+            # testargs.append("--distributed_backend=ddp_cpu")
+            testargs.append("--num_processes=1")
 
         cmd = [sys.executable, str(Path(finetune_rag.__file__).resolve())] + testargs
         execute_subprocess_async(cmd, env=self.get_env())
 
-        metrics_save_path = os.path.join(output_dir, "metrics.json")
-        with open(metrics_save_path) as f:
-            result = json.load(f)
-        return result
+        # metrics_save_path = os.path.join(output_dir, "metrics.json")
+        # with open(metrics_save_path) as f:
+        #     result = json.load(f)
+        # return result
 
-    @require_torch_gpu
+    # @require_torch_gpu
     def test_finetune_gpu(self):
-        result = self._run_finetune(gpus=1)
-        self.assertGreaterEqual(result["test"][0]["test_avg_em"], 0.2)
+        result = self._run_finetune(gpus=0)
+        # self.assertGreaterEqual(result["test"][0]["test_avg_em"], 0.2)
 
     @require_torch_multi_gpu
     def test_finetune_multigpu(self):
@@ -108,3 +111,8 @@ class RagFinetuneExampleTests(TestCasePlus):
     def test_finetune_multigpu_ray_retrieval(self):
         result = self._run_finetune(gpus=1, distributed_retriever="ray")
         self.assertGreaterEqual(result["test"][0]["test_avg_em"], 0.2)
+
+
+rag = RagFinetuneExampleTests()
+rag.setUp()
+rag.test_finetune_gpu()

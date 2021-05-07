@@ -129,6 +129,8 @@ class GenerativeQAModule(BaseTransformer):
 
         # set retriever parameters
         config.n_docs = hparams.n_docs
+        config.scoring = hparams.scoring
+        config.segmentation = hparams.segmentation or config.segmentation
         config.max_combined_length = hparams.max_combined_length or config.max_combined_length
         config.max_source_length = hparams.max_source_length or config.max_source_length
         config.index_name = hparams.index_name or config.index_name
@@ -395,10 +397,17 @@ class GenerativeQAModule(BaseTransformer):
         BaseTransformer.add_model_specific_args(parser, root_dir)
         add_generic_args(parser, root_dir)
         parser.add_argument(
+            "--scoring",
+            default="original",
+            type=str,
+            help="different scoring function, `original`, `multi`, `rerank`",
+        )
+        parser.add_argument(
             "--segmentation",
             default="token",
             type=str,
-            help="Document segmentation",
+            help="The maximum total input sequence length after tokenization. Sequences longer "
+            "than this will be truncated, sequences shorter will be padded.",
         )
         parser.add_argument(
             "--max_combined_length",
