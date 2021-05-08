@@ -88,7 +88,8 @@ class RagPyTorchDistributedRetriever(RagRetriever):
         ifname = next((addr for addr in addrs if addr.startswith("e")), None)
         return ifname
 
-    def retrieve(self, question_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, List[dict]]:
+    def retrieve(self, combined_hidden_states: np.ndarray,current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
+            Tuple[np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``. The main process, which has the access to the index stored in memory, gathers queries
         from all the processes in the main training process group, performs the retrieval and scatters back the results.
@@ -110,29 +111,44 @@ class RagPyTorchDistributedRetriever(RagRetriever):
 
         # single GPU training
         if not dist.is_initialized():
-            doc_ids, retrieved_doc_embeds = self._main_retrieve(question_hidden_states, n_docs)
+            # doc_ids, retrieved_doc_embeds = self._main_retrieve(question_hidden_states, n_docs)
+            doc_ids, retrieved_doc_embeds = self._main_retrieve(combined_hidden_states,
+                                                                current_hidden_states,
+                                                                history_hidden_states,
+                                                                n_docs)
+            # return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
             return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
 
         # distributed training
         world_size = dist.get_world_size(group=self.process_group)
 
         # gather logic
-        gather_list = None
+        gather_list_1 = None
+        gather_list_2 = None
+        gather_list_3 = None
         if self._is_main():
-            gather_list = [torch.empty(question_hidden_states.shape, dtype=torch.float32) for _ in range(world_size)]
-        dist.gather(torch.tensor(question_hidden_states), dst=0, gather_list=gather_list, group=self.process_group)
+            gather_list_1 = [torch.empty(combined_hidden_states.shape, dtype=torch.float32) for _ in range(world_size)]
+            gather_list_2 = [torch.empty(current_hidden_states.shape, dtype=torch.float32) for _ in range(world_size)]
+            gather_list_3 = [torch.empty(history_hidden_states.shape, dtype=torch.float32) for _ in range(world_size)]
+        dist.gather(torch.tensor(combined_hidden_states), dst=0, gather_list=gather_list_1, group=self.process_group)
+        dist.gather(torch.tensor(current_hidden_states), dst=0, gather_list=gather_list_2, group=self.process_group)
+        dist.gather(torch.tensor(history_hidden_states), dst=0, gather_list=gather_list_3, group=self.process_group)
 
         # scatter logic
-        n_queries = question_hidden_states.shape[0]
+        n_queries = combined_hidden_states.shape[0]
         scatter_ids = []
         scatter_vectors = []
         if self._is_main():
-            assert len(gather_list) == world_size
-            ids, vectors = self._main_retrieve(torch.cat(gather_list).numpy(), n_docs)
+            assert len(gather_list_1) == len(gather_list_2) == len(gather_list_3) == world_size
+            comb_h_s = torch.cat(gather_list_1).numpy()
+            curr_h_s = torch.cat(gather_list_2).numpy()
+            hist_h_s = torch.cat(gather_list_3).numpy()
+            ids, vectors = self._main_retrieve(comb_h_s, curr_h_s, hist_h_s, n_docs)
             ids, vectors = torch.tensor(ids), torch.tensor(vectors)
             scatter_ids = self._chunk_tensor(ids, n_queries)
             scatter_vectors = self._chunk_tensor(vectors, n_queries)
+
         doc_ids = self._scattered(scatter_ids, [n_queries, n_docs], target_type=torch.int64)
-        retrieved_doc_embeds = self._scattered(scatter_vectors, [n_queries, n_docs, question_hidden_states.shape[1]])
+        retrieved_doc_embeds = self._scattered(scatter_vectors, [n_queries, n_docs, combined_hidden_states.shape[1]])
 
         return retrieved_doc_embeds.numpy(), doc_ids.numpy(), self.index.get_doc_dicts(doc_ids)
