@@ -16,10 +16,6 @@ topn=5
 KB_FOLDER=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-$seg-$dpr
 DATA_DIR=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_$format
 config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr
-
-jbsub -cores 4+$core -mem 128g -queue x86_24h -require v100 \
--out logs/$config.out \
--err logs/$config.err \
 python finetune_rag.py \
     --segmentation $seg \
     --data_dir $DATA_DIR \
