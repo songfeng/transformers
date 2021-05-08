@@ -286,6 +286,37 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
         return np.array(final_ids), np.array(vectors), np.array(final_scores)  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
+    def get_top_docs_rerank(self, question_hidden_states: np.ndarray, curr_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        scores1, ids1 = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
+        scores2, ids2 = self.dataset.search_batch("embeddings", curr_hidden_states, n_docs)
+        n1, n2 = len(ids1), len(ids2)
+        ids3 = [None] * (n1 + n2)
+        i = j = k = 0
+        while i < n1 and j < n2:
+            if scores1[i] >= scores2[j]:
+                ids3[k] = ids1[i]
+                k, i = k + 1, i + 1
+            else:
+                ids3[k] = ids2[j]
+                k, j = k + 1, j + 1
+        while i < n1:
+            ids3[k] = ids1[i]
+            k, i = k + 1, i + 1
+        while j < n2:
+            ids3[k] = ids2[j]
+            k, j = k + 1, j + 1
+        ids_new = []
+        for ele in ids3:
+            if ele not in ids_new:
+                ids_new.append(ele)
+        ids = ids_new[:n_docs]
+        docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
+        vectors = [doc["embeddings"] for doc in docs]
+        for i in range(len(vectors)):
+            if len(vectors[i]) < n_docs:
+                vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
+        return np.array(ids), np.array(vectors)  # shapes (batch_size, n_docs), (batch_size, n_docs, d) and (batch_size, n_docs)
+
 
 class CanonicalHFIndex(HFIndexBase):
     """
@@ -570,7 +601,7 @@ class RagRetriever:
     def _chunk_tensor(self, t: Iterable, chunk_size: int) -> List[Iterable]:
         return [t[i : i + chunk_size] for i in range(0, len(t), chunk_size)]
 
-    def _main_retrieve(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _main_retrieve(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         def linear(a: List[int]):
             return sum(a)
 
@@ -586,12 +617,11 @@ class RagRetriever:
         scores_batched = []
         for question_hidden_states in question_hidden_states_batched:
             start_time = time.time()
-            if self.config.multihandle:
-                if self.config.scoring_func == "linear":
-                    scoring_func = linear
-                else:
-                    scoring_func = nonlinear
+            if self.config.scoring_func in ["linear", "nonlinear"]:
+                scoring_func = linear if self.config.scoring_func == "linear" else nonlinear
                 ids, vectors, scores = self.index.get_top_docs_multihandle(question_hidden_states, history_hidden_states, scoring_func, n_docs)
+            elif self.config.scoring_func == "reranking":
+                ids, vectors, scores = self.index.get_top_docs_rerank(question_hidden_states, history_hidden_states, n_docs)
             else:
                 ids, vectors, scores = self.index.get_top_docs(question_hidden_states, n_docs)
             logger.debug(
@@ -606,7 +636,7 @@ class RagRetriever:
             np.array(scores),
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def retrieve(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
+    def retrieve(self, combined_hidden_states: np.ndarray,current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
             Tuple[np.ndarray, np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``.
@@ -627,7 +657,7 @@ class RagRetriever:
             - **doc_dicts** (:obj:`List[dict]`): The :obj:`retrieved_doc_embeds` examples per query.
         """
 
-        doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(question_hidden_states, history_hidden_states, n_docs)
+        doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states, current_hidden_states, history_hidden_states, n_docs)
         return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
     def __call__(
@@ -676,9 +706,8 @@ class RagRetriever:
 
         n_docs = n_docs if n_docs is not None else self.n_docs
         prefix = prefix if prefix is not None else self.config.generator.prefix
-        retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(question_hidden_states=current_hidden_states,
-                                                                        history_hidden_states=history_hidden_states,
-                                                                        n_docs=n_docs)
+        retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(combined_hidden_states=combined_hidden_states,
+        current_hidden_states=current_hidden_states,history_hidden_states=history_hidden_states,n_docs=n_docs)
 
         input_strings = self.question_encoder_tokenizer.batch_decode(question_input_ids, skip_special_tokens=True)
         context_input_ids, context_attention_mask = self.postprocess_docs(
