@@ -36,23 +36,23 @@ class RagFinetuneExampleTests(TestCasePlus):
 
         tmp_dir = self.get_auto_remove_tmp_dir()
         output_dir = os.path.join(tmp_dir, "output")
-        data_dir = "data"
+        data_dir = "/Users/sivasp/playground/datasets/doc2dial/rag"
         self._create_dummy_data(data_dir=data_dir)
 
         testargs = f"""
-                --data_dir data/dd_v2_grounding_token_sep \
+                --data_dir {data_dir}/dd_grounding_token_two \
                 --output_dir output \
                 --index_name custom \
-                --index_path {data_dir}/dd_knowledge_dataset/my_knowledge_dataset_hnsw_index.faiss \
-                --passages_path {data_dir}/dd_knowledge_dataset/my_knowledge_dataset \
-                --model_name_or_path facebook/rag-sequence-base \
-                --model_type rag_sequence \
+                --index_path /Users/sivasp/playground/datasets/doc2dial/faiss/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset_hnsw_index.faiss \
+                --passages_path /Users/sivasp/playground/datasets/doc2dial/faiss/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset \
+                --model_name_or_path facebook/rag-token-base \
+                --model_type rag_token \
                 --do_train \
                 --do_predict \
                 --n_val -1 \
                 --val_check_interval 1.0 \
-                --train_batch_size 2 \
-                --eval_batch_size 1 \
+                --train_batch_size 4 \
+                --eval_batch_size 8 \
                 --max_source_length 25 \
                 --max_target_length 25 \
                 --val_max_target_length 25 \
@@ -90,9 +90,9 @@ class RagFinetuneExampleTests(TestCasePlus):
         #     result = json.load(f)
         # return result
 
-    # @require_torch_gpu
+    @require_torch_gpu
     def test_finetune_gpu(self):
-        result = self._run_finetune(gpus=0)
+        result = self._run_finetune(gpus=1)
         # self.assertGreaterEqual(result["test"][0]["test_avg_em"], 0.2)
 
     @require_torch_multi_gpu
