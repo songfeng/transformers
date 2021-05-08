@@ -1526,21 +1526,23 @@ class RagTokenForGeneration(RagPreTrainedModel):
                 n_docs=n_docs,
                 return_tensors="pt",
             )
-            context_input_ids, context_attention_mask, retrieved_doc_embeds = (
+            context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_scores = (
                 out["context_input_ids"],
                 out["context_attention_mask"],
                 out["retrieved_doc_embeds"],
+                out["doc_scores"],
             )
 
             # set to correct device
-            retrieved_doc_embeds = retrieved_doc_embeds.to(question_hidden_states)
+            retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
+            doc_scores = retrieved_doc_scores.to(input_ids)
 
             # compute doc_scores
-            doc_scores = torch.bmm(question_hidden_states.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
-                1
-            )
+            # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
+            #     1
+            # )
 
         assert (
             context_input_ids.shape[0] % n_docs

@@ -676,7 +676,7 @@ class RagRetriever:
 
         n_docs = n_docs if n_docs is not None else self.n_docs
         prefix = prefix if prefix is not None else self.config.generator.prefix
-        retrieved_doc_embeds, doc_ids, docs, doc_scores = self.retrieve(question_hidden_states=current_hidden_states,
+        retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(question_hidden_states=current_hidden_states,
                                                                         history_hidden_states=history_hidden_states,
                                                                         n_docs=n_docs)
 
