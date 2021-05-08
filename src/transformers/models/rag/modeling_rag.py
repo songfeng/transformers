@@ -696,7 +696,7 @@ class RagModel(RagPreTrainedModel):
             context_attention_mask=context_attention_mask,
             retrieved_doc_embeds=retrieved_doc_embeds,
             retrieved_doc_ids=retrieved_doc_ids,
-            question_encoder_last_hidden_state=question_encoder_last_hidden_state,
+            question_encoder_last_hidden_state=combined_out,
             question_enc_hidden_states=question_enc_hidden_states,
             question_enc_attentions=question_enc_attentions,
             generator_enc_last_hidden_state=gen_outputs.encoder_last_hidden_state,
