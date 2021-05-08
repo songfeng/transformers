@@ -517,6 +517,14 @@ class RagModel(RagPreTrainedModel):
         self.question_encoder = question_encoder
         self.generator = generator
 
+    @staticmethod
+    def mean_pool(vector: torch.LongTensor):
+        return vector.sum(axis=0) / vector.shape[0]
+
+    @staticmethod
+    def get_attn_mask(tokens_tensor: torch.LongTensor) -> torch.tensor:
+        return tokens_tensor != 0
+
     @add_start_docstrings_to_model_forward(RAG_FORWARD_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=RetrievAugLMOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
