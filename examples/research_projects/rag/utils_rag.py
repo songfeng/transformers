@@ -33,6 +33,21 @@ def encode_line(tokenizer, line, max_length, padding_side, pad_to_max_length=Tru
     )
 
 
+def encode_line2(tokenizer, line, max_length, padding_side, pad_to_max_length=True, return_tensors="pt"):
+    extra_kw = {"add_prefix_space": True} if isinstance(tokenizer, BartTokenizer) and not line.startswith(" ") else {}
+    tokenizer.padding_side = padding_side
+    line = tuple(line.split("[SEP]"))
+    return tokenizer(
+        [line],
+        max_length=max_length,
+        padding="max_length" if pad_to_max_length else None,
+        truncation=True,
+        return_tensors=return_tensors,
+        add_special_tokens=True,
+        **extra_kw,
+    )
+
+
 def trim_batch(
     input_ids,
     pad_token_id,
@@ -94,15 +109,17 @@ class Seq2SeqDataset(Dataset):
         )
         target_tokenizer = self.tokenizer.generator if isinstance(self.tokenizer, RagTokenizer) else self.tokenizer
 
-        source_inputs = encode_line(source_tokenizer, source_line, self.max_source_length, "right")
+        source_inputs = encode_line2(source_tokenizer, source_line, self.max_source_length, "right")
         target_inputs = encode_line(target_tokenizer, tgt_line, self.max_target_length, "right")
 
         source_ids = source_inputs["input_ids"].squeeze()
         target_ids = target_inputs["input_ids"].squeeze()
         src_mask = source_inputs["attention_mask"].squeeze()
+        src_token_type_ids = source_inputs["token_type_ids"].squeeze()
         return {
             "input_ids": source_ids,
             "attention_mask": src_mask,
+            "token_type_ids": src_token_type_ids,
             "decoder_input_ids": target_ids,
         }
 
@@ -113,6 +130,7 @@ class Seq2SeqDataset(Dataset):
     def collate_fn(self, batch) -> Dict[str, torch.Tensor]:
         input_ids = torch.stack([x["input_ids"] for x in batch])
         masks = torch.stack([x["attention_mask"] for x in batch])
+        token_type_ids = torch.stack([x["token_type_ids"] for x in batch])
         target_ids = torch.stack([x["decoder_input_ids"] for x in batch])
         tgt_pad_token_id = (
             self.tokenizer.generator.pad_token_id
@@ -129,6 +147,7 @@ class Seq2SeqDataset(Dataset):
         batch = {
             "input_ids": source_ids,
             "attention_mask": source_mask,
+            "token_type_ids": token_type_ids,
             "decoder_input_ids": y,
         }
         return batch

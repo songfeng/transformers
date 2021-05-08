@@ -522,6 +522,7 @@ class RagModel(RagPreTrainedModel):
         self,
         input_ids=None,
         attention_mask=None,
+        token_type_ids=None,
         encoder_outputs=None,
         decoder_input_ids=None,
         decoder_attention_mask=None,
@@ -572,15 +573,46 @@ class RagModel(RagPreTrainedModel):
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
                 )
-                question_encoder_last_hidden_state = question_enc_outputs[0]  # hidden states of question encoder
+                if self.config.multihandle:
+                    combined_out = question_enc_outputs.pooler_output
+                    ## Split the dpr sequence output
+                    sequence_output = question_enc_outputs.last_hidden_state
+                    attn_mask = self.get_attn_mask(input_ids)
+                    ## Split sequence output, and pool each sequence
+                    seq_out_0 = []  # last turn, if query; doc structure if passage
+                    seq_out_1 = []  # dial history, if query; passage text if passage
+                    for i in range(sequence_output.shape[0]):
+                        seq_out_masked = sequence_output[i, attn_mask[i], :]
+                        segment_masked = token_type_ids[i, attn_mask[i]]
+                        seq_out_masked_0 = seq_out_masked[segment_masked == 0, :]
+                        seq_out_masked_1 = seq_out_masked[segment_masked == 1, :]
+                        ### perform pooling
+                        seq_out_0.append(self.mean_pool(seq_out_masked_0))
+                        seq_out_1.append(self.mean_pool(seq_out_masked_1))
 
-                retriever_outputs = self.retriever(
-                    input_ids,
-                    question_encoder_last_hidden_state.cpu().detach().to(torch.float32).numpy(),
-                    prefix=self.generator.config.prefix,
-                    n_docs=n_docs,
-                    return_tensors="pt",
-                )
+                    pooled_output_q = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
+                    pooled_output_h = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
+
+                    retriever_outputs = self.retriever(
+                        input_ids,
+                        combined_out.cpu().detach().to(torch.float32).numpy(),
+                        pooled_output_q.cpu().detach().to(torch.float32).numpy(),
+                        pooled_output_h.cpu().detach().to(torch.float32).numpy(),
+                        prefix=self.generator.config.prefix,
+                        n_docs=n_docs,
+                        return_tensors="pt",
+                    )
+                else:
+                    question_encoder_last_hidden_state = question_enc_outputs[0]  # hidden states of question encoder
+
+                    retriever_outputs = self.retriever(
+                        input_ids,
+                        question_encoder_last_hidden_state.cpu().detach().to(torch.float32).numpy(),
+                        prefix=self.generator.config.prefix,
+                        n_docs=n_docs,
+                        return_tensors="pt",
+                    )
+
                 context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids = (
                     retriever_outputs["context_input_ids"],
                     retriever_outputs["context_attention_mask"],
@@ -1069,7 +1101,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
         question_encoder: Optional[PreTrainedModel] = None,
         generator: Optional[PreTrainedModel] = None,
         retriever: Optional = None,
-        scorer = torch.nn.Sequential(
+        scorer: Optional = torch.nn.Sequential(
                 torch.nn.Linear(2, 2),
                 torch.nn.ReLU(),
                 torch.nn.Linear(2, 1),
@@ -1173,6 +1205,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
         self,
         input_ids=None,
         attention_mask=None,
+        token_type_ids=None,
         encoder_outputs=None,
         decoder_input_ids=None,
         decoder_attention_mask=None,
@@ -1245,6 +1278,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
         outputs = self.rag(
             input_ids=input_ids,
             attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
             encoder_outputs=encoder_outputs,
             decoder_input_ids=decoder_input_ids,
             decoder_attention_mask=decoder_attention_mask,

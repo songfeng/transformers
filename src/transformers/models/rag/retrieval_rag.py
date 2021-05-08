@@ -606,7 +606,8 @@ class RagRetriever:
             np.array(scores),
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def retrieve(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, List[dict]]:
+    def retrieve(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
+            Tuple[np.ndarray, np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``.
 
@@ -627,7 +628,7 @@ class RagRetriever:
         """
 
         doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(question_hidden_states, history_hidden_states, n_docs)
-        return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids), doc_scores
+        return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
     def __call__(
         self,
@@ -675,7 +676,9 @@ class RagRetriever:
 
         n_docs = n_docs if n_docs is not None else self.n_docs
         prefix = prefix if prefix is not None else self.config.generator.prefix
-        retrieved_doc_embeds, doc_ids, docs, doc_scores = self.retrieve(current_hidden_states, history_hidden_states, n_docs)
+        retrieved_doc_embeds, doc_ids, docs, doc_scores = self.retrieve(question_hidden_states=current_hidden_states,
+                                                                        history_hidden_states=history_hidden_states,
+                                                                        n_docs=n_docs)
 
         input_strings = self.question_encoder_tokenizer.batch_decode(question_input_ids, skip_special_tokens=True)
         context_input_ids, context_attention_mask = self.postprocess_docs(

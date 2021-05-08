@@ -100,7 +100,7 @@ class RagConfig(PretrainedConfig):
         segmentation="token",
         max_combined_length=300,
         multihandle=True,
-        scoring_func="linear",
+        scoring_func="nnet",
         retrieval_vector_size=768,
         retrieval_batch_size=8,
         dataset="wiki_dpr",
