@@ -225,10 +225,10 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
         return np.array(ids), np.array(vectors), np.array(scores)  # shapes (batch_size, n_docs), (batch_size, n_docs, d) and (batch_size, n_docs)
 
-    def get_top_docs_multihandle(self, question_hidden_states: np.ndarray, history_hidden_states: np.ndarray,
+    def get_top_docs_multihandle(self, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray,
                                  scoring_func, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         total_docs = len(self.dataset)
-        scores_0, ids_0 = self.dataset.search_batch("embeddings", question_hidden_states, 500)
+        scores_0, ids_0 = self.dataset.search_batch("embeddings", current_hidden_states, 500)
         scores_1, ids_1 = self.dataset.search_batch("embeddings", history_hidden_states, 500)
 
         final_scores = []

@@ -1529,12 +1529,12 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     return_tensors="pt",
                 )
             else:
-                question_hidden_states = self.question_encoder(input_ids, attention_mask=attention_mask)[0]
+                combined_out = self.question_encoder(input_ids, attention_mask=attention_mask)[0]
                 out = self.retriever(
                     input_ids,
-                    question_hidden_states.cpu().detach().to(torch.float32).numpy(),
-                    question_hidden_states.cpu().detach().to(torch.float32).numpy(), ## sending dummy
-                    question_hidden_states.cpu().detach().to(torch.float32).numpy(), ## sending dummy
+                    combined_out.cpu().detach().to(torch.float32).numpy(),
+                    combined_out.cpu().detach().to(torch.float32).numpy(), ## sending dummy
+                    combined_out.cpu().detach().to(torch.float32).numpy(), ## sending dummy
                     prefix=self.generator.config.prefix,
                     n_docs=n_docs,
                     return_tensors="pt",
@@ -1548,7 +1548,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             )
 
             # set to correct device
-            retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
+            # retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
             doc_scores = retrieved_doc_scores.to(torch.float32)
