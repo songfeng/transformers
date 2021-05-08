@@ -286,8 +286,8 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
         return np.array(final_ids), np.array(vectors), np.array(final_scores)  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def get_top_docs_rerank(self, question_hidden_states: np.ndarray, curr_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        scores1, ids1 = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
+    def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, curr_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        scores1, ids1 = self.dataset.search_batch("embeddings", combined_hidden_states, n_docs)
         scores2, ids2 = self.dataset.search_batch("embeddings", curr_hidden_states, n_docs)
         n1, n2 = len(ids1), len(ids2)
         ids3 = [None] * (n1 + n2)
@@ -611,21 +611,23 @@ class RagRetriever:
         def nonlinear(nnet: torch.nn.Module, a):
             return nnet(a)
 
-        question_hidden_states_batched = self._chunk_tensor(question_hidden_states, self.batch_size)
+        combined_hidden_states_batched = self._chunk_tensor(combined_hidden_states, self.batch_size)
+        current_hidden_states_batched = self._chunk_tensor(current_hidden_states, self.batch_size)
+        history_hidden_states_batched = self._chunk_tensor(history_hidden_states, self.batch_size)
         ids_batched = []
         vectors_batched = []
         scores_batched = []
-        for question_hidden_states in question_hidden_states_batched:
+        for comb_h_s, curr_h_s, hist_h_s in zip(combined_hidden_states_batched, current_hidden_states_batched, history_hidden_states_batched):
             start_time = time.time()
             if self.config.scoring_func in ["linear", "nonlinear"]:
                 scoring_func = linear if self.config.scoring_func == "linear" else nonlinear
-                ids, vectors, scores = self.index.get_top_docs_multihandle(question_hidden_states, history_hidden_states, scoring_func, n_docs)
+                ids, vectors, scores = self.index.get_top_docs_multihandle(curr_h_s, hist_h_s, scoring_func, n_docs)
             elif self.config.scoring_func == "reranking":
-                ids, vectors, scores = self.index.get_top_docs_rerank(question_hidden_states, history_hidden_states, n_docs)
+                ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs)
             else:
-                ids, vectors, scores = self.index.get_top_docs(question_hidden_states, n_docs)
+                ids, vectors, scores = self.index.get_top_docs(comb_h_s, n_docs)
             logger.debug(
-                f"index search time: {time.time() - start_time} sec, batch size {question_hidden_states.shape}"
+                f"index search time: {time.time() - start_time} sec, batch size {comb_h_s.shape}"
             )
             ids_batched.extend(ids)
             vectors_batched.extend(vectors)

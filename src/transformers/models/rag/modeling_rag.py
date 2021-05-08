@@ -625,12 +625,12 @@ class RagModel(RagPreTrainedModel):
                 retrieved_doc_embeds = retrieved_doc_embeds.to(question_encoder_last_hidden_state)
                 context_input_ids = context_input_ids.to(input_ids)
                 context_attention_mask = context_attention_mask.to(input_ids)
-                doc_scores = retrieved_doc_scores.to(torch.float32)
+                # doc_scores = retrieved_doc_scores.to(torch.float32)
 
                 # compute doc_scores
-                # doc_scores = torch.bmm(
-                #     question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
-                # ).squeeze(1)
+                doc_scores = torch.bmm(
+                    question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                ).squeeze(1)
             else:
                 assert (
                     context_input_ids is not None
@@ -1551,12 +1551,12 @@ class RagTokenForGeneration(RagPreTrainedModel):
             # retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
-            doc_scores = retrieved_doc_scores.to(torch.float32)
+            # doc_scores = retrieved_doc_scores.to(torch.float32)
 
             # compute doc_scores
-            # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
-            #     1
-            # )
+            doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
+                1
+            )
 
         assert (
             context_input_ids.shape[0] % n_docs
