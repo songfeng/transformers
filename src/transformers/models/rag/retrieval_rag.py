@@ -286,37 +286,44 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
         return np.array(final_ids), np.array(vectors), np.array(final_scores)  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, curr_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         scores1, ids1 = self.dataset.search_batch("embeddings", combined_hidden_states, n_docs)
-        scores2, ids2 = self.dataset.search_batch("embeddings", curr_hidden_states, n_docs)
+        scores2, ids2 = self.dataset.search_batch("embeddings", current_hidden_states, n_docs)
         n1, n2 = len(ids1), len(ids2)
         ids3 = [None] * (n1 + n2)
+        scores = [0] * (n1 + n2)
         i = j = k = 0
         while i < n1 and j < n2:
             if scores1[i] >= scores2[j]:
                 ids3[k] = ids1[i]
+                scores[k] = scores1[i]
                 k, i = k + 1, i + 1
             else:
                 ids3[k] = ids2[j]
+                scores[k] = scores2[i]
                 k, j = k + 1, j + 1
         while i < n1:
             ids3[k] = ids1[i]
+            scores[k] = scores1[i]
             k, i = k + 1, i + 1
         while j < n2:
             ids3[k] = ids2[j]
+            scores[k] = scores2[i]
             k, j = k + 1, j + 1
         ids_new = []
-        for ele in ids3:
+        scores_new = []
+        for ii, ele in enumerate(ids3):
             if ele not in ids_new:
                 ids_new.append(ele)
+                scores_new.apend(scores[ii])
         ids = ids_new[:n_docs]
+        scores = scores_new[:n_docs]
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
             if len(vectors[i]) < n_docs:
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
-        return np.array(ids), np.array(vectors)  # shapes (batch_size, n_docs), (batch_size, n_docs, d) and (batch_size, n_docs)
-
+        return np.array(ids), np.array(vectors), np.array(scores)
 
 class CanonicalHFIndex(HFIndexBase):
     """
