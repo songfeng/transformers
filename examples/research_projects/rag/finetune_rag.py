@@ -9,6 +9,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+# import pdb
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -129,7 +131,7 @@ class GenerativeQAModule(BaseTransformer):
 
         # set retriever parameters
         config.n_docs = hparams.n_docs
-        config.scoring = hparams.scoring
+        config.scoring_func = hparams.scoring_func or config.scoring_func
         config.segmentation = hparams.segmentation or config.segmentation
         config.max_combined_length = hparams.max_combined_length or config.max_combined_length
         config.max_source_length = hparams.max_source_length or config.max_source_length
@@ -146,6 +148,7 @@ class GenerativeQAModule(BaseTransformer):
             config.label_smoothing = hparams.label_smoothing
             hparams, config.generator = set_extra_model_params(extra_model_params, hparams, config.generator)
             if hparams.distributed_retriever == "pytorch":
+                # pdb.set_trace()
                 retriever = RagPyTorchDistributedRetriever.from_pretrained(hparams.model_name_or_path, config=config)
             elif hparams.distributed_retriever == "ray":
                 # The Ray retriever needs the handles to the retriever actors.
@@ -400,10 +403,10 @@ class GenerativeQAModule(BaseTransformer):
         BaseTransformer.add_model_specific_args(parser, root_dir)
         add_generic_args(parser, root_dir)
         parser.add_argument(
-            "--scoring",
+            "--scoring_func",
             default="original",
             type=str,
-            help="different scoring function, `original`, `multi`, `rerank`",
+            help="different scoring function, `original`, `linear`, `nonlinear`, `reranking`",
         )
         parser.add_argument(
             "--segmentation",
