@@ -19,6 +19,8 @@ import pickle
 import time
 from typing import Iterable, List, Optional, Tuple
 
+import pdb
+
 import torch
 import numpy as np
 
@@ -262,7 +264,7 @@ class HFIndexBase(Index):
             ## sort by ids
             q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_0_i, scores_0_i)))
             h_doc_ids, h_doc_scores = zip(*sorted(zip(ids_1_i, scores_1_i)))
-
+            pdb.set_trace()
             assert q_doc_ids == h_doc_ids
 
             ## Combine scores using scoring function

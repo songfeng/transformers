@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple
 
 import torch
-import pdb
 
 from ...configuration_utils import PretrainedConfig
 from ...file_utils import add_start_docstrings_to_model_forward, replace_return_docstrings
@@ -1510,7 +1509,6 @@ class RagTokenForGeneration(RagPreTrainedModel):
         # retrieve docs
         if self.retriever is not None and context_input_ids is None:
             if self.config.scoring_func in ['linear', 'nonlinear', 'reranking']:
-                pdb.set_trace()
                 dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
                 combined_out = dpr_out.pooler_output
                 ## Split the dpr sequence output
