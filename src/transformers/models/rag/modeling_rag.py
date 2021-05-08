@@ -672,7 +672,7 @@ class RagModel(RagPreTrainedModel):
         )
 
         if not has_to_retrieve:
-            question_encoder_last_hidden_state = None
+            combined_out = None
             question_enc_hidden_states = None
             question_enc_attentions = None
             retrieved_doc_embeds = None
