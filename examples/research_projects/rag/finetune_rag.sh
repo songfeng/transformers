@@ -21,7 +21,7 @@ python finetune_rag.py \
     --data_dir $DATA_DIR \
     --scoring_func linear \
     --cache_dir $YOUR_PROJ_DIR/cache \
-    --output_dir $YOUR_PROJ_DIR/checkpoints/$config \
+    --output_dir output \
     --model_name_or_path $MODEL_NAME_OR_PATH \
     --model_type rag_token \
     --index_name custom \
