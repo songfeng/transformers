@@ -613,22 +613,24 @@ class RagModel(RagPreTrainedModel):
                         return_tensors="pt",
                     )
 
-                context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids = (
+                context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids, retrieved_doc_scores = (
                     retriever_outputs["context_input_ids"],
                     retriever_outputs["context_attention_mask"],
                     retriever_outputs["retrieved_doc_embeds"],
                     retriever_outputs["doc_ids"],
+                    retriever_outputs["doc_scores"],
                 )
 
                 # set to correct device
                 retrieved_doc_embeds = retrieved_doc_embeds.to(question_encoder_last_hidden_state)
                 context_input_ids = context_input_ids.to(input_ids)
                 context_attention_mask = context_attention_mask.to(input_ids)
+                doc_scores = retrieved_doc_scores.to(torch.float32)
 
                 # compute doc_scores
-                doc_scores = torch.bmm(
-                    question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
-                ).squeeze(1)
+                # doc_scores = torch.bmm(
+                #     question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                # ).squeeze(1)
             else:
                 assert (
                     context_input_ids is not None
@@ -1496,36 +1498,48 @@ class RagTokenForGeneration(RagPreTrainedModel):
 
         # retrieve docs
         if self.retriever is not None and context_input_ids is None:
-            # question_hidden_states = self.question_encoder(input_ids, attention_mask=attention_mask)[0]
-            dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
-            combined_out = dpr_out.pooler_output
-            ## Split the dpr sequence output
-            sequence_output = dpr_out.last_hidden_state
-            attn_mask = self.get_attn_mask(input_ids)
-            ## Split sequence output, and pool each sequence
-            seq_out_0 = []  # last turn, if query; doc structure if passage
-            seq_out_1 = []  # dial history, if query; passage text if passage
-            for i in range(sequence_output.shape[0]):
-                seq_out_masked = sequence_output[i, attn_mask[i], :]
-                segment_masked = token_type_ids[i, attn_mask[i]]
-                seq_out_masked_0 = seq_out_masked[segment_masked == 0, :]
-                seq_out_masked_1 = seq_out_masked[segment_masked == 1, :]
-                ### perform pooling
-                seq_out_0.append(self.mean_pool(seq_out_masked_0))
-                seq_out_1.append(self.mean_pool(seq_out_masked_1))
+            if self.config.multihandle:
+                dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
+                combined_out = dpr_out.pooler_output
+                ## Split the dpr sequence output
+                sequence_output = dpr_out.last_hidden_state
+                attn_mask = self.get_attn_mask(input_ids)
+                ## Split sequence output, and pool each sequence
+                seq_out_0 = []  # last turn, if query; doc structure if passage
+                seq_out_1 = []  # dial history, if query; passage text if passage
+                for i in range(sequence_output.shape[0]):
+                    seq_out_masked = sequence_output[i, attn_mask[i], :]
+                    segment_masked = token_type_ids[i, attn_mask[i]]
+                    seq_out_masked_0 = seq_out_masked[segment_masked == 0, :]
+                    seq_out_masked_1 = seq_out_masked[segment_masked == 1, :]
+                    ### perform pooling
+                    seq_out_0.append(self.mean_pool(seq_out_masked_0))
+                    seq_out_1.append(self.mean_pool(seq_out_masked_1))
 
-            pooled_output_0 = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
-            pooled_output_1 = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
+                pooled_output_0 = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
+                pooled_output_1 = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
 
-            out = self.retriever(
-                input_ids,
-                combined_out.cpu().detach().to(torch.float32).numpy(),
-                pooled_output_0.cpu().detach().to(torch.float32).numpy(),
-                pooled_output_1.cpu().detach().to(torch.float32).numpy(),
-                prefix=self.generator.config.prefix,
-                n_docs=n_docs,
-                return_tensors="pt",
-            )
+                out = self.retriever(
+                    input_ids,
+                    combined_out.cpu().detach().to(torch.float32).numpy(),
+                    pooled_output_0.cpu().detach().to(torch.float32).numpy(),
+                    pooled_output_1.cpu().detach().to(torch.float32).numpy(),
+                    prefix=self.generator.config.prefix,
+                    n_docs=n_docs,
+                    return_tensors="pt",
+                )
+            else:
+                question_hidden_states = self.question_encoder(input_ids, attention_mask=attention_mask)[0]
+                out = self.retriever(
+                    input_ids,
+                    question_hidden_states.cpu().detach().to(torch.float32).numpy(),
+                    question_hidden_states.cpu().detach().to(torch.float32).numpy(), ## sending dummy
+                    question_hidden_states.cpu().detach().to(torch.float32).numpy(), ## sending dummy
+                    prefix=self.generator.config.prefix,
+                    n_docs=n_docs,
+                    return_tensors="pt",
+                )
+
             context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_scores = (
                 out["context_input_ids"],
                 out["context_attention_mask"],
@@ -1537,7 +1551,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
-            doc_scores = retrieved_doc_scores.to(input_ids)
+            doc_scores = retrieved_doc_scores.to(torch.float32)
 
             # compute doc_scores
             # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
