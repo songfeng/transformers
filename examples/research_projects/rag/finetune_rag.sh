@@ -1,26 +1,52 @@
-# Add parent directory to python path to access lightning_base.py
 export PYTHONPATH="../":"${PYTHONPATH}"
+export HF_HOME="/dccstor/dialog/sfeng/hf_home"
+export TOKENIZERS_PARALLELISM=false
+YOUR_PROJ_DIR="/dccstor/dialog/sfeng/transformers_doc2dial"
+export TRANSFORMERS_CACHE=$YOUR_PROJ_DIR/cache
+task=grounding
+seg=token
+format=two
+dpr=dpr_new
+MODEL_NAME_OR_PATH=/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints/rag-$dpr
+core=1
+epoch=15
+sourcelen=128
+targetlen=50
+topn=5
+KB_FOLDER=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-$seg-$dpr
+DATA_DIR=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_$format
+config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr
 
-# A sample finetuning run, you need to specify data_dir, output_dir and model_name_or_path
-# run ./examples/rag/finetune_rag.sh --help to see all the possible options
-
-python examples/rag/finetune_rag.py \
+jbsub -cores 4+$core -mem 128g -queue x86_24h -require v100 \
+-out logs/$config.out \
+-err logs/$config.err \
+python finetune_rag.py \
+    --segmentation $seg \
     --data_dir $DATA_DIR \
-    --output_dir $OUTPUT_DIR \
+    --scoring_func linear \
+    --cache_dir $YOUR_PROJ_DIR/cache \
+    --output_dir $YOUR_PROJ_DIR/checkpoints/$config \
     --model_name_or_path $MODEL_NAME_OR_PATH \
-    --model_type rag_sequence \
+    --model_type rag_token \
+    --index_name custom \
+    --passages_path $KB_FOLDER/my_knowledge_dataset \
+    --index_path $KB_FOLDER/my_knowledge_dataset_hnsw_index.faiss \
     --fp16 \
-    --gpus 8 \
     --profile \
     --do_train \
     --do_predict \
-    --n_val -1 \
-    --train_batch_size 8 \
+    --gpus $core \
+    --n_train 10 \
+    --n_val 2 \
+    --n_test 2 \
+    --n_docs $topn \
+    --train_batch_size 6 \
     --eval_batch_size 1 \
-    --max_source_length 128 \
-    --max_target_length 25 \
-    --val_max_target_length 25 \
-    --test_max_target_length 25 \
+    --max_combined_length 300 \
+    --max_source_length $sourcelen \
+    --max_target_length $targetlen \
+    --val_max_target_length $targetlen \
+    --test_max_target_length $targetlen \
     --label_smoothing 0.1 \
     --dropout 0.1 \
     --attention_dropout 0.1 \
@@ -29,6 +55,6 @@ python examples/rag/finetune_rag.py \
     --max_grad_norm 0.1 \
     --lr_scheduler polynomial \
     --learning_rate 3e-05 \
-    --num_train_epochs 100 \
+    --num_train_epochs $epoch \
     --warmup_steps 500 \
-    --gradient_accumulation_steps 1 \
+    --gradient_accumulation_steps 1 
