@@ -627,7 +627,7 @@ class RagModel(RagPreTrainedModel):
                 retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
                 context_input_ids = context_input_ids.to(input_ids)
                 context_attention_mask = context_attention_mask.to(input_ids)
-                doc_scores = retrieved_doc_scores.to(input_ids)
+                doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
                 # doc_scores = torch.bmm(
@@ -1553,7 +1553,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
-            doc_scores = retrieved_doc_scores.to(input_ids)
+            doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
             # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
