@@ -144,6 +144,8 @@ class Seq2SeqDataset(Dataset):
         )
         y = trim_batch(target_ids, tgt_pad_token_id)
         source_ids, source_mask = trim_batch(input_ids, src_pad_token_id, attention_mask=masks)
+        keep_col_mask = input_ids.ne(src_pad_token_id).any(dim=0)
+        token_type_ids = token_type_ids[:, keep_col_mask]
         batch = {
             "input_ids": source_ids,
             "attention_mask": source_mask,
