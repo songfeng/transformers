@@ -116,14 +116,17 @@ def evaluate_batch_retrieval(args, rag_model, questions):
 def evaluate_batch_e2e(args, rag_model, questions):
     with torch.no_grad():
         inputs_dict = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
-            questions, return_tensors="pt", padding=True, truncation=True
+            questions, return_tensors="pt", padding=True, truncation=True,
+            add_special_tokens=True, return_token_type_ids=True
         )
 
         input_ids = inputs_dict.input_ids.to(args.device)
+        token_type_ids = inputs_dict.token_type_ids.to(args.device)
         attention_mask = inputs_dict.attention_mask.to(args.device)
         outputs = rag_model.generate(  # rag_model overwrites generate
             input_ids,
             attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
             num_beams=args.num_beams,
             min_length=args.min_length,
             max_length=args.max_length,
@@ -134,7 +137,6 @@ def evaluate_batch_e2e(args, rag_model, questions):
         answers = rag_model.retriever.generator_tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         if args.print_predictions:
-            for q, a in zip(questions, answers):
                 logger.info("Q: {} - A: {}".format(q, a))
 
         return answers
@@ -186,7 +188,7 @@ def get_args():
     parser.add_argument(
         "--eval_mode",
         choices=["e2e", "retrieval"],
-        default="retrieval",
+        default="e2e",
         type=str,
         help="Evaluation mode, e2e calculates exact match and F1 of the downstream task, retrieval calculates precision@k.",
     )
@@ -312,7 +314,8 @@ def main(args):
             for line in tqdm(eval_file):
                 questions.append(line.strip())
                 if len(questions) == args.eval_batch_size:
-                    answers = evaluate_batch_fn(args, model, questions)
+                    new_questions = list(tuple(question.split("[SEP]")) for question in questions)
+                    answers = evaluate_batch_fn(args, model, new_questions)
                     preds_file.write("\n".join(answers) + "\n")
                     preds_file.flush()
                     questions = []
