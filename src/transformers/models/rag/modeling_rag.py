@@ -613,12 +613,11 @@ class RagModel(RagPreTrainedModel):
                         return_tensors="pt",
                     )
 
-                context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids, retrieved_doc_scores = (
+                context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids = (
                     retriever_outputs["context_input_ids"],
                     retriever_outputs["context_attention_mask"],
                     retriever_outputs["retrieved_doc_embeds"],
                     retriever_outputs["doc_ids"],
-                    retriever_outputs["doc_scores"],
                 )
 
                 # set to correct device
@@ -1540,11 +1539,10 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     return_tensors="pt",
                 )
 
-            context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_scores = (
+            context_input_ids, context_attention_mask, retrieved_doc_embeds = (
                 out["context_input_ids"],
                 out["context_attention_mask"],
                 out["retrieved_doc_embeds"],
-                out["doc_scores"],
             )
 
             # set to correct device
