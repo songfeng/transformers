@@ -613,23 +613,24 @@ class RagModel(RagPreTrainedModel):
                         return_tensors="pt",
                     )
 
-                context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids = (
+                context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids, retrieved_doc_scores = (
                     retriever_outputs["context_input_ids"],
                     retriever_outputs["context_attention_mask"],
                     retriever_outputs["retrieved_doc_embeds"],
                     retriever_outputs["doc_ids"],
+                    retriever_outputs["doc_scores"],
                 )
 
                 # set to correct device
                 retrieved_doc_embeds = retrieved_doc_embeds.to(question_encoder_last_hidden_state)
                 context_input_ids = context_input_ids.to(input_ids)
                 context_attention_mask = context_attention_mask.to(input_ids)
-                # doc_scores = retrieved_doc_scores.to(torch.float32)
+                doc_scores = retrieved_doc_scores.to(torch.float32)
 
                 # compute doc_scores
-                doc_scores = torch.bmm(
-                    question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
-                ).squeeze(1)
+                # doc_scores = torch.bmm(
+                #     question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                # ).squeeze(1)
             else:
                 assert (
                     context_input_ids is not None
@@ -1539,22 +1540,23 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     return_tensors="pt",
                 )
 
-            context_input_ids, context_attention_mask, retrieved_doc_embeds = (
+            context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_scores = (
                 out["context_input_ids"],
                 out["context_attention_mask"],
                 out["retrieved_doc_embeds"],
+                out["doc_scores"],
             )
 
             # set to correct device
-            # retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
+            retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
-            # doc_scores = retrieved_doc_scores.to(torch.float32)
+            doc_scores = retrieved_doc_scores.to(torch.float32)
 
             # compute doc_scores
-            doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
-                1
-            )
+            # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
+            #     1
+            # )
 
         assert (
             context_input_ids.shape[0] % n_docs
