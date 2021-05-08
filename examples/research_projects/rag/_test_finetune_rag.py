@@ -36,15 +36,15 @@ class RagFinetuneExampleTests(TestCasePlus):
 
         tmp_dir = self.get_auto_remove_tmp_dir()
         output_dir = os.path.join(tmp_dir, "output")
-        data_dir = "/Users/sivasp/playground/datasets/doc2dial/rag"
-        self._create_dummy_data(data_dir=data_dir)
+        data_dir = "/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_generation_structure_two"
+        # self._create_dummy_data(data_dir=data_dir)
 
         testargs = f"""
-                --data_dir {data_dir}/dd_grounding_token_two \
+                --data_dir /dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_generation_structure_two \
                 --output_dir output \
                 --index_name custom \
-                --index_path /Users/sivasp/playground/datasets/doc2dial/faiss/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset_hnsw_index.faiss \
-                --passages_path /Users/sivasp/playground/datasets/doc2dial/faiss/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset \
+                --index_path /dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset_hnsw_index.faiss \
+                --passages_path /dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset \
                 --model_name_or_path facebook/rag-token-base \
                 --model_type rag_token \
                 --do_train \
