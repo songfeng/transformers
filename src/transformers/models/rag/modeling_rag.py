@@ -603,11 +603,13 @@ class RagModel(RagPreTrainedModel):
                         return_tensors="pt",
                     )
                 else:
-                    question_encoder_last_hidden_state = question_enc_outputs[0]  # hidden states of question encoder
+                    combined_out = question_enc_outputs[0]  # hidden states of question encoder
 
                     retriever_outputs = self.retriever(
                         input_ids,
-                        question_encoder_last_hidden_state.cpu().detach().to(torch.float32).numpy(),
+                        combined_out.cpu().detach().to(torch.float32).numpy(),
+                        combined_out.cpu().detach().to(torch.float32).numpy(),  ## sending dummy
+                        combined_out.cpu().detach().to(torch.float32).numpy(),  ## sending dummy
                         prefix=self.generator.config.prefix,
                         n_docs=n_docs,
                         return_tensors="pt",
@@ -622,10 +624,10 @@ class RagModel(RagPreTrainedModel):
                 )
 
                 # set to correct device
-                retrieved_doc_embeds = retrieved_doc_embeds.to(question_encoder_last_hidden_state)
+                retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
                 context_input_ids = context_input_ids.to(input_ids)
                 context_attention_mask = context_attention_mask.to(input_ids)
-                doc_scores = retrieved_doc_scores.to(torch.float32)
+                doc_scores = retrieved_doc_scores.to(input_ids)
 
                 # compute doc_scores
                 # doc_scores = torch.bmm(
@@ -1551,7 +1553,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             retrieved_doc_embeds = retrieved_doc_embeds.to(combined_out)
             context_input_ids = context_input_ids.to(input_ids)
             context_attention_mask = context_attention_mask.to(input_ids)
-            doc_scores = retrieved_doc_scores.to(torch.float32)
+            doc_scores = retrieved_doc_scores.to(input_ids)
 
             # compute doc_scores
             # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
