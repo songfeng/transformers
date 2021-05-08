@@ -89,7 +89,7 @@ class RagPyTorchDistributedRetriever(RagRetriever):
         return ifname
 
     def retrieve(self, combined_hidden_states: np.ndarray,current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
-            Tuple[np.ndarray, np.ndarray, List[dict]]:
+            Tuple[np.ndarray, np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``. The main process, which has the access to the index stored in memory, gathers queries
         from all the processes in the main training process group, performs the retrieval and scatters back the results.
@@ -112,12 +112,12 @@ class RagPyTorchDistributedRetriever(RagRetriever):
         # single GPU training
         if not dist.is_initialized():
             # doc_ids, retrieved_doc_embeds = self._main_retrieve(question_hidden_states, n_docs)
-            doc_ids, retrieved_doc_embeds = self._main_retrieve(combined_hidden_states,
+            doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states,
                                                                 current_hidden_states,
                                                                 history_hidden_states,
                                                                 n_docs)
             # return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
-            return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
+            return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
         # distributed training
         world_size = dist.get_world_size(group=self.process_group)
@@ -138,17 +138,20 @@ class RagPyTorchDistributedRetriever(RagRetriever):
         n_queries = combined_hidden_states.shape[0]
         scatter_ids = []
         scatter_vectors = []
+        scatter_scores = []
         if self._is_main():
             assert len(gather_list_1) == len(gather_list_2) == len(gather_list_3) == world_size
             comb_h_s = torch.cat(gather_list_1).numpy()
             curr_h_s = torch.cat(gather_list_2).numpy()
             hist_h_s = torch.cat(gather_list_3).numpy()
-            ids, vectors = self._main_retrieve(comb_h_s, curr_h_s, hist_h_s, n_docs)
-            ids, vectors = torch.tensor(ids), torch.tensor(vectors)
+            ids, vectors, scores = self._main_retrieve(comb_h_s, curr_h_s, hist_h_s, n_docs)
+            ids, vectors, scores = torch.tensor(ids), torch.tensor(vectors), torch.tensor(scores)
             scatter_ids = self._chunk_tensor(ids, n_queries)
             scatter_vectors = self._chunk_tensor(vectors, n_queries)
+            scatter_scores = self._chunk_tensor(scores, n_queries)
 
         doc_ids = self._scattered(scatter_ids, [n_queries, n_docs], target_type=torch.int64)
         retrieved_doc_embeds = self._scattered(scatter_vectors, [n_queries, n_docs, combined_hidden_states.shape[1]])
+        doc_scores = self._scattered(scatter_scores, [n_queries, n_docs], torch.float64)
 
-        return retrieved_doc_embeds.numpy(), doc_ids.numpy(), self.index.get_doc_dicts(doc_ids)
+        return retrieved_doc_embeds.numpy(), doc_ids.numpy(), doc_scores.numpy(), self.index.get_doc_dicts(doc_ids)
