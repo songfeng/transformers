@@ -23,6 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 transformers_logging.set_verbosity_info()
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 def infer_model_type(model_name_or_path):
     if "token" in model_name_or_path:
@@ -160,14 +161,14 @@ def get_args():
     )
     parser.add_argument(
         "--index_path",
-        default="data/dd_structure_knowledge_dataset-colbert_60000/my_knowledge_dataset_hnsw_index.faiss",
+        default="/Users/sivasp/playground/datasets/doc2dial/faiss/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset_hnsw_index.faiss",
         type=str,
         help="Path to the passage retrieval index",
     )
 
     parser.add_argument(
         "--passages_path",
-        default="data/dd_structure_knowledge_dataset-colbert_60000/my_knowledge_dataset",
+        default="/Users/sivasp/playground/datasets/doc2dial/faiss/dd_knowledge_dataset-token-dpr_new/my_knowledge_dataset",
         type=str,
         help="Path to the knowledge data",
     )
@@ -195,14 +196,14 @@ def get_args():
     parser.add_argument("--k", default=1, type=int, help="k for the precision@k calculation")
     parser.add_argument(
         "--evaluation_set",
-        default="data/dd_v2_grounding_structure_sep/mini.source",
+        default="/Users/sivasp/playground/datasets/doc2dial/rag/dd_grounding_token_two/test_sample.source",
         type=str,
         # required=True,
         help="Path to a file containing evaluation samples",
     )
     parser.add_argument(
         "--gold_data_path",
-        default="data/dd_v2_grounding_structure_sep/mini.target",
+        default="/Users/sivasp/playground/datasets/doc2dial/rag/dd_grounding_token_two/test_sample.target",
         type=str,
         # required=True,
         help="Path to a tab-separated file with gold samples",
