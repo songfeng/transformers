@@ -268,6 +268,7 @@ class HFIndexBase(Index):
             try:
                 assert q_doc_ids == h_doc_ids
             except TypeError:
+                logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
                 pdb.set_trace()
 
             ## Combine scores using scoring function
