@@ -291,35 +291,38 @@ class HFIndexBase(Index):
     def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         scores1, ids1 = self.dataset.search_batch("embeddings", combined_hidden_states, n_docs)
         scores2, ids2 = self.dataset.search_batch("embeddings", current_hidden_states, n_docs)
-        n1, n2 = len(ids1), len(ids2)
-        ids3 = [None] * (n1 + n2)
-        scores = [0] * (n1 + n2)
-        i = j = k = 0
-        while i < n1 and j < n2:
-            if scores1[i] >= scores2[j]:
-                ids3[k] = ids1[i]
-                scores[k] = scores1[i]
+        ids3 = [[None] * (5 * 2)] * len(ids1)
+        scores3 = [[0] * (5 * 2)] * len(ids1)
+        scores = []
+        ids = []
+        for r in range(len(ids1)):
+            n1, n2 = len(ids1[r]), len(ids2[r])
+            i = j = k = 0
+            while i < n1 and j < n2:
+                if scores1[r][i] >= scores2[r][j]:
+                    ids3[r][k] = ids1[r][i]
+                    scores3[r][k] = scores1[r][i]
+                    k, i = k + 1, i + 1
+                else:
+                    ids3[r][k] = ids2[r][j]
+                    scores3[r][k] = scores2[r][i]
+                    k, j = k + 1, j + 1
+            while i < n1:
+                ids3[r][k] = ids1[r][i]
+                scores3[r][k] = scores1[r][i]
                 k, i = k + 1, i + 1
-            else:
-                ids3[k] = ids2[j]
-                scores[k] = scores2[i]
+            while j < n2:
+                ids3[r][k] = ids2[r][j]
+                scores3[r][k] = scores2[r][j]
                 k, j = k + 1, j + 1
-        while i < n1:
-            ids3[k] = ids1[i]
-            scores[k] = scores1[i]
-            k, i = k + 1, i + 1
-        while j < n2:
-            ids3[k] = ids2[j]
-            scores[k] = scores2[i]
-            k, j = k + 1, j + 1
-        ids_new = []
-        scores_new = []
-        for ii, ele in enumerate(ids3):
-            if ele not in ids_new:
-                ids_new.append(ele)
-                scores_new.apend(scores[ii])
-        ids = ids_new[:n_docs]
-        scores = scores_new[:n_docs]
+            ids_new = []
+            scores_new = []
+            for ii, ele in enumerate(ids3[r]):
+                if ele not in ids_new:
+                    ids_new.append(ele)
+                    scores_new.append(scores3[r][ii])
+            ids.append(ids_new[:5])
+            scores.append(scores_new[:5])
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
