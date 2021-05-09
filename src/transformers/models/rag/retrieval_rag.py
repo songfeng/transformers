@@ -257,14 +257,18 @@ class HFIndexBase(Index):
 
             ## only keep ids and scores that are common between question and history
             ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i, scores_current_i)
-            ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_current_i_common, scores_history_i)
+            ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i, scores_history_i)
 
             assert len(ids_current_i_common) == len(ids_history_i_common)
 
             ## sort by ids
             q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_current_i_common, scores_current_i_common)))
             h_doc_ids, h_doc_scores = zip(*sorted(zip(ids_history_i_common, scores_history_i_common)))
+
+            q_doc_ids, q_doc_scores = list(q_doc_ids), list(q_doc_scores)
+            h_doc_ids, h_doc_scores = list(h_doc_ids), list(h_doc_scores)
             # pdb.set_trace()
+            # assert q_doc_ids == h_doc_ids
             try:
                 assert q_doc_ids == h_doc_ids
             except TypeError:
