@@ -259,7 +259,11 @@ class HFIndexBase(Index):
             ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i, scores_current_i)
             ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i, scores_history_i)
 
-            assert len(ids_current_i_common) == len(ids_history_i_common)
+            try:
+                assert len(ids_current_i_common) == len(ids_history_i_common)
+            except AssertionError:
+                logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
+                pdb.set_trace()
 
             ## sort by ids
             q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_current_i_common, scores_current_i_common)))
