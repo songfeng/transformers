@@ -291,8 +291,8 @@ class HFIndexBase(Index):
     def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         scores1, ids1 = self.dataset.search_batch("embeddings", combined_hidden_states, n_docs)
         scores2, ids2 = self.dataset.search_batch("embeddings", current_hidden_states, n_docs)
-        ids3 = [[None] * (5 * 2)] * len(ids1)
-        scores3 = [[0] * (5 * 2)] * len(ids1)
+        ids3 = [[None] * n_docs] * len(ids1)
+        scores3 = [[0] * n_docs] * len(ids1)
         scores = []
         ids = []
         for r in range(len(ids1)):
