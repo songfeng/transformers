@@ -252,6 +252,7 @@ class HFIndexBase(Index):
 
             ## common ids between question and history
             common_ids = set(ids_current_i).intersection(set(ids_history_i))
+            common_ids = {i for i in common_ids if i >= 0}
             if len(common_ids) < n_docs:
                 print("Error: only {} common ids found".format(len(common_ids)))
 
@@ -259,11 +260,13 @@ class HFIndexBase(Index):
             ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i, scores_current_i)
             ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i, scores_history_i)
 
-            try:
-                assert len(ids_current_i_common) == len(ids_history_i_common)
-            except AssertionError:
-                logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
-                pdb.set_trace()
+            assert len(ids_current_i_common) == len(ids_history_i_common)
+
+            # try:
+            #     assert len(ids_current_i_common) == len(ids_history_i_common)
+            # except AssertionError:
+            #     logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
+            #     pdb.set_trace()
 
             ## sort by ids
             q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_current_i_common, scores_current_i_common)))
@@ -271,13 +274,13 @@ class HFIndexBase(Index):
 
             q_doc_ids, q_doc_scores = list(q_doc_ids), list(q_doc_scores)
             h_doc_ids, h_doc_scores = list(h_doc_ids), list(h_doc_scores)
-            # pdb.set_trace()
-            # assert q_doc_ids == h_doc_ids
-            try:
-                assert q_doc_ids == h_doc_ids
-            except TypeError:
-                logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
-                pdb.set_trace()
+
+            assert q_doc_ids == h_doc_ids
+            # try:
+            #     assert q_doc_ids == h_doc_ids
+            # except TypeError:
+            #     logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
+            #     pdb.set_trace()
 
             ## Combine scores using scoring function
             rescored_ids = []
