@@ -638,9 +638,10 @@ class RagModel(RagPreTrainedModel):
                 doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
-                # doc_scores = torch.bmm(
-                #     question_encoder_last_hidden_state.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
-                # ).squeeze(1)
+                if self.config.scoring_func in ['original', 'reranking']:
+                    doc_scores = torch.bmm(
+                        combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                    ).squeeze(1)
             else:
                 assert (
                     context_input_ids is not None
@@ -1564,7 +1565,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            if self.config.scoring_func in ['reranking']:
+            if self.config.scoring_func in ['reranking', 'original']:
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )

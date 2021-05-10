@@ -681,7 +681,7 @@ class RagRetriever:
             np.array(scores),
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def retrieve(self, combined_hidden_states: np.ndarray,current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
+    def retrieve(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
             Tuple[np.ndarray, np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``.
