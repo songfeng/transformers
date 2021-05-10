@@ -3,6 +3,7 @@ import os
 from typing import List, Tuple
 
 import numpy as np
+import pdb
 import psutil
 import torch
 import torch.distributed as dist
@@ -117,6 +118,7 @@ class RagPyTorchDistributedRetriever(RagRetriever):
                                                                 history_hidden_states,
                                                                 n_docs)
             # return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
+            pdb.set_trace()
             return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
         # distributed training
