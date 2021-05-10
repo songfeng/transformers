@@ -4,24 +4,31 @@ export TOKENIZERS_PARALLELISM=false
 YOUR_PROJ_DIR="/dccstor/dialog/sfeng/transformers_doc2dial"
 export TRANSFORMERS_CACHE=$YOUR_PROJ_DIR/cache
 task=grounding
-seg=token
+seg=structure
+score=linear
 format=two
 dpr=dpr_new
+# dpr=dpr_bi_$seg
 MODEL_NAME_OR_PATH=/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints/rag-$dpr
+# dpr=""
+# MODEL_NAME_OR_PATH='facebook/rag-token-base'
 core=1
-epoch=15
+epoch=10
 sourcelen=128
 targetlen=50
 topn=5
 KB_FOLDER=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-$seg-$dpr
 DATA_DIR=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_$format
-config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr
+config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score
+jbsub -cores 4+$core -mem 128g -queue x86_24h -require v100 \
+-out logs/$config.out \
+-err logs/$config.err \
 python finetune_rag.py \
     --segmentation $seg \
     --data_dir $DATA_DIR \
-    --scoring_func linear \
+    --scoring_func $score \
     --cache_dir $YOUR_PROJ_DIR/cache \
-    --output_dir output \
+    --output_dir output/$config \
     --model_name_or_path $MODEL_NAME_OR_PATH \
     --model_type rag_token \
     --index_name custom \
@@ -32,9 +39,9 @@ python finetune_rag.py \
     --do_train \
     --do_predict \
     --gpus $core \
-    --n_train 10 \
-    --n_val 2 \
-    --n_test 2 \
+    --n_train -1 \
+    --n_val -1 \
+    --n_test -1 \
     --n_docs $topn \
     --train_batch_size 6 \
     --eval_batch_size 1 \
