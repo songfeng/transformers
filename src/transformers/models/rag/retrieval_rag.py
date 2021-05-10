@@ -227,45 +227,60 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
         return np.array(ids), np.array(vectors), np.array(scores)  # shapes (batch_size, n_docs), (batch_size, n_docs, d) and (batch_size, n_docs)
 
+    @staticmethod
+    def filter_ids(common_ids, ids, scores):
+        new_ids = []
+        new_scores = []
+        for i in range(len(ids)):
+            if ids[i] in common_ids:
+                new_ids.append(ids[i])
+                new_scores.append(scores[i])
+
+        return new_ids, new_scores
+
     def get_top_docs_multihandle(self, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray,
                                  scoring_func, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         total_docs = len(self.dataset)
-        scores_0, ids_0 = self.dataset.search_batch("embeddings", current_hidden_states, 500)
-        scores_1, ids_1 = self.dataset.search_batch("embeddings", history_hidden_states, 500)
+        scores_current, ids_current = self.dataset.search_batch("embeddings", current_hidden_states, 500)
+        scores_history, ids_history = self.dataset.search_batch("embeddings", history_hidden_states, 500)
 
         final_scores = []
         final_ids = []
-        for i in range(len(ids_0)):
-            ids_0_i, scores_0_i = ids_0[i], scores_0[i]
-            ids_1_i, scores_1_i = ids_1[i], scores_1[i]
+        for i in range(len(ids_current)):
+            ids_current_i, scores_current_i = ids_current[i], scores_current[i]
+            ids_history_i, scores_history_i = ids_history[i], scores_history[i]
 
             ## common ids between question and history
-            common_ids = set(ids_0_i).intersection(set(ids_1_i))
+            common_ids = set(ids_current_i).intersection(set(ids_history_i))
+            common_ids = {i for i in common_ids if i >= 0}
             if len(common_ids) < n_docs:
-                print("Error: Common ids - {}".format(len(common_ids)))
+                print("Error: only {} common ids found".format(len(common_ids)))
 
             ## only keep ids and scores that are common between question and history
-            new_ids_0_i = []
-            new_scores_0_i = []
-            for j in range(len(ids_0_i)):
-                if ids_0_i[j] in common_ids:
-                    new_ids_0_i.append(ids_0_i[j])
-                    new_scores_0_i.append(scores_0_i[j])
-            ids_0_i, scores_0_i = new_ids_0_i, new_scores_0_i
+            ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i, scores_current_i)
+            ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i, scores_history_i)
 
-            new_ids_1_i = []
-            new_scores_1_i = []
-            for j in range(len(ids_1_i)):
-                if ids_1_i[j] in common_ids:
-                    new_ids_1_i.append(ids_1_i[j])
-                    new_scores_1_i.append(scores_1_i[j])
-            ids_1_i, scores_1_i = new_ids_1_i, new_scores_1_i
+            assert len(ids_current_i_common) == len(ids_history_i_common)
+
+            # try:
+            #     assert len(ids_current_i_common) == len(ids_history_i_common)
+            # except AssertionError:
+            #     logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
+            #     pdb.set_trace()
 
             ## sort by ids
-            q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_0_i, scores_0_i)))
-            h_doc_ids, h_doc_scores = zip(*sorted(zip(ids_1_i, scores_1_i)))
-            pdb.set_trace()
+            q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_current_i_common, scores_current_i_common)))
+            h_doc_ids, h_doc_scores = zip(*sorted(zip(ids_history_i_common, scores_history_i_common)))
+
+            q_doc_ids, q_doc_scores = list(q_doc_ids), list(q_doc_scores)
+            h_doc_ids, h_doc_scores = list(h_doc_ids), list(h_doc_scores)
+
             assert q_doc_ids == h_doc_ids
+            # try:
+            #     assert q_doc_ids == h_doc_ids
+            # except TypeError:
+            #     logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
+            #     pdb.set_trace()
 
             ## Combine scores using scoring function
             rescored_ids = []
@@ -672,6 +687,7 @@ class RagRetriever:
         """
 
         doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states, current_hidden_states, history_hidden_states, n_docs)
+        pdb.set_trace()
         return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
     def __call__(

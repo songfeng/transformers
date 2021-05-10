@@ -132,6 +132,7 @@ class GenerativeQAModule(BaseTransformer):
         # set retriever parameters
         config.n_docs = hparams.n_docs
         config.scoring_func = hparams.scoring_func or config.scoring_func
+        logger.info("Using scoring function - {}".format(config.scoring_func))
         config.segmentation = hparams.segmentation or config.segmentation
         config.max_combined_length = hparams.max_combined_length or config.max_combined_length
         config.max_source_length = hparams.max_source_length or config.max_source_length
