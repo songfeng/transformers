@@ -638,7 +638,7 @@ class RagModel(RagPreTrainedModel):
                 doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
-                if self.config.scoring_func in ['original', 'reranking']:
+                if self.config.scoring_func in ['original', 'reranking', 'linear', 'linear2']:
                     doc_scores = torch.bmm(
                         combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                     ).squeeze(1)
@@ -1565,7 +1565,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            if self.config.scoring_func in ['reranking', 'original']:
+            if self.config.scoring_func in ['reranking', 'original', 'linear', 'linear2']:
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )
