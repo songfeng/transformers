@@ -254,19 +254,35 @@ class HFIndexBase(Index):
             common_ids = set(ids_current_i).intersection(set(ids_history_i))
             common_ids = {i for i in common_ids if i >= 0}
             if len(common_ids) < n_docs:
-                print("Error: only {} common ids found".format(len(common_ids)))
+                logger.info("Only {} common ids found".format(len(common_ids)))
+                logger.info("Picking the best ids from top matches to current turn and adding them to common_ids until we reach {}".format(n_docs))
+                new_ids = []
+                for id in ids_current_i:
+                    if len(common_ids) == n_docs:
+                        break
+                    if id not in common_ids:
+                        new_ids.append(id)
+                        common_ids.add(id)
 
-            ## only keep ids and scores that are common between question and history
-            ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i, scores_current_i)
-            ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i, scores_history_i)
+                ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i,
+                                                                                scores_current_i)
+                ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i,
+                                                                                scores_history_i)
 
-            assert len(ids_current_i_common) == len(ids_history_i_common)
+                doc_dicts = self.get_doc_dicts(np.array(new_ids))
+                for i, id in enumerate(new_ids):
+                    ids_history_i_common.append(id)
+                    score = np.inner(history_hidden_states[i], doc_dicts[i]['embeddings'])
+                    scores_history_i_common.append(score)
 
-            # try:
-            #     assert len(ids_current_i_common) == len(ids_history_i_common)
-            # except AssertionError:
-            #     logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
-            #     pdb.set_trace()
+                assert len(ids_current_i_common) == len(ids_history_i_common)
+
+            else:
+                ## only keep ids and scores that are common between question and history
+                ids_current_i_common, scores_current_i_common = self.filter_ids(common_ids, ids_current_i, scores_current_i)
+                ids_history_i_common, scores_history_i_common = self.filter_ids(common_ids, ids_history_i, scores_history_i)
+
+                assert len(ids_current_i_common) == len(ids_history_i_common)
 
             ## sort by ids
             q_doc_ids, q_doc_scores = zip(*sorted(zip(ids_current_i_common, scores_current_i_common)))
@@ -276,11 +292,6 @@ class HFIndexBase(Index):
             h_doc_ids, h_doc_scores = list(h_doc_ids), list(h_doc_scores)
 
             assert q_doc_ids == h_doc_ids
-            # try:
-            #     assert q_doc_ids == h_doc_ids
-            # except TypeError:
-            #     logger.info("assert failed {} {}".format(len(q_doc_ids), len(h_doc_ids)))
-            #     pdb.set_trace()
 
             ## Combine scores using scoring function
             rescored_ids = []
