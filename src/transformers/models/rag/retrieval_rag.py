@@ -657,8 +657,13 @@ class RagRetriever:
         scores_batched = []
         for comb_h_s, curr_h_s, hist_h_s in zip(combined_hidden_states_batched, current_hidden_states_batched, history_hidden_states_batched):
             start_time = time.time()
-            if self.config.scoring_func in ["linear", "nonlinear"]:
-                scoring_func = linear if self.config.scoring_func == "linear" else nonlinear
+            if self.config.scoring_func in ["linear", "linear2", "nonlinear"]:
+                if self.config.scoring_func == "linear":
+                    scoring_func = linear
+                elif self.config.scoring_func == "linear2":
+                    scoring_func = linear2
+                else:
+                    scoring_func = nonlinear
                 ids, vectors, scores = self.index.get_top_docs_multihandle(curr_h_s, hist_h_s, scoring_func, n_docs)
             elif self.config.scoring_func == "reranking":
                 ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs)

@@ -581,7 +581,7 @@ class RagModel(RagPreTrainedModel):
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
                 )
-                if self.config.scoring_func in ['linear', 'nonlinear', 'reranking']:
+                if self.config.scoring_func in ['linear', 'linear2', 'nonlinear', 'reranking']:
                     combined_out = question_enc_outputs.pooler_output
                     ## Split the dpr sequence output
                     sequence_output = question_enc_outputs.last_hidden_state
@@ -1508,7 +1508,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
 
         # retrieve docs
         if self.retriever is not None and context_input_ids is None:
-            if self.config.scoring_func in ['linear', 'nonlinear', 'reranking']:
+            if self.config.scoring_func in ['linear', 'linear2', 'nonlinear', 'reranking']:
                 dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
                 combined_out = dpr_out.pooler_output
                 ## Split the dpr sequence output
@@ -1564,9 +1564,10 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            # doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
-            #     1
-            # )
+            if self.config.scoring_func in ['reranking']:
+                doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
+                    1
+                )
 
         assert (
             context_input_ids.shape[0] % n_docs
