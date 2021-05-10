@@ -255,7 +255,7 @@ class HFIndexBase(Index):
             common_ids = {i for i in common_ids if i >= 0}
             if len(common_ids) < n_docs:
                 logger.info("Only {} common ids found".format(len(common_ids)))
-                logger.info("Picking the best ids from top matches to current turn and adding them to common_ids until we reach {}".format(n_docs))
+                logger.info("Picking the best ids from top matches with current turn and adding them to common_ids until we reach n_docs={}".format(n_docs))
                 new_ids = []
                 for id in ids_current_i:
                     if len(common_ids) == n_docs:
@@ -270,9 +270,9 @@ class HFIndexBase(Index):
                                                                                 scores_history_i)
 
                 doc_dicts = self.get_doc_dicts(np.array(new_ids))
-                for i, id in enumerate(new_ids):
+                for j, id in enumerate(new_ids):
                     ids_history_i_common.append(id)
-                    score = np.inner(history_hidden_states[i], doc_dicts[i]['embeddings'])
+                    score = np.inner(history_hidden_states[i], doc_dicts[j]['embeddings'])
                     scores_history_i_common.append(score)
 
                 assert len(ids_current_i_common) == len(ids_history_i_common)
@@ -698,7 +698,6 @@ class RagRetriever:
         """
 
         doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states, current_hidden_states, history_hidden_states, n_docs)
-        pdb.set_trace()
         return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
     def __call__(

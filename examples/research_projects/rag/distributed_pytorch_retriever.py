@@ -118,7 +118,6 @@ class RagPyTorchDistributedRetriever(RagRetriever):
                                                                 history_hidden_states,
                                                                 n_docs)
             # return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
-            pdb.set_trace()
             return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
         # distributed training
