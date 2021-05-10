@@ -638,10 +638,24 @@ class RagModel(RagPreTrainedModel):
                 doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
-                if self.config.scoring_func in ['original', 'reranking', 'linear', 'linear2']:
+                if self.config.scoring_func in ['original', 'reranking']:
                     doc_scores = torch.bmm(
                         combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                     ).squeeze(1)
+                elif self.config.scoring_func in ['linear', 'linear2']:
+                    doc_scores_curr = torch.bmm(
+                        pooled_output_q.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                    ).squeeze(1)
+
+                    doc_scores_hist = torch.bmm(
+                        pooled_output_h.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                    ).squeeze(1)
+
+                    if self.config.scoring_func == "linear":
+                        doc_scores = doc_scores_curr + doc_scores_hist
+                    else:
+                        doc_scores = doc_scores_curr + 0.5 * doc_scores_hist
+
             else:
                 assert (
                     context_input_ids is not None
@@ -1565,10 +1579,23 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            if self.config.scoring_func in ['reranking', 'original', 'linear', 'linear2']:
+            if self.config.scoring_func in ['reranking', 'original']:
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )
+            elif self.config.scoring_func in ['linear', 'linear2']:
+                doc_scores_curr = torch.bmm(
+                    pooled_output_0.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                ).squeeze(1)
+
+                doc_scores_hist = torch.bmm(
+                    pooled_output_1.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
+                ).squeeze(1)
+
+                if self.config.scoring_func == "linear":
+                    doc_scores = doc_scores_curr + doc_scores_hist
+                else:
+                    doc_scores = doc_scores_curr + 0.5 * doc_scores_hist
 
         assert (
             context_input_ids.shape[0] % n_docs
