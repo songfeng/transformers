@@ -131,6 +131,7 @@ class GenerativeQAModule(BaseTransformer):
 
         # set retriever parameters
         config.n_docs = hparams.n_docs
+        config.do_marginalize = hparams.do_marginalize or config.do_marginalize
         config.scoring_func = hparams.scoring_func or config.scoring_func
         logger.info("Using scoring function - {}".format(config.scoring_func))
         config.segmentation = hparams.segmentation or config.segmentation
@@ -525,6 +526,12 @@ class GenerativeQAModule(BaseTransformer):
             type=bool,
             default=False,
             help="Whether to use the dummy version of the dataset index. More info about custom indexes in the RagRetriever documentation as well as in `examples/rag/use_own_knowledge_dataset.py`",
+        )
+        parser.add_argument(
+            "--do_marginalize",
+            type=bool,
+            default=False,
+            help="",
         )
         return parser
 
