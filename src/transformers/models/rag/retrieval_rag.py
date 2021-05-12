@@ -748,7 +748,7 @@ class RagRetriever:
         combined_hidden_states: np.ndarray,
         current_hidden_states: np.ndarray,
         history_hidden_states: np.ndarray,
-        dialog_lengths: None,
+        dialog_lengths: List[Tuple],
         prefix=None,
         n_docs=None,
         return_tensors=None,
