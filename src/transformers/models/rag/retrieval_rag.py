@@ -628,8 +628,11 @@ class RagRetriever:
             if prefix is None:
                 prefix = ""
             if self.config.segmentation == "token":
+                # out = (
+                #     prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string
+                # ).replace("  ", " ")
                 out = (
-                    prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string
+                    prefix + input_string.strip()[: self.config.max_source_length] + self.config.doc_sep + doc_title + self.config.title_sep + doc_text
                 ).replace("  ", " ")
             else:
                 out = (
