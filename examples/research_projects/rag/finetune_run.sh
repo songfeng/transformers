@@ -19,7 +19,7 @@ targetlen=50
 topn=5
 KB_FOLDER=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-$seg-$dpr
 DATA_DIR=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_$format
-config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-test
+config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score
 
 jbsub -cores 4+$core -mem 128g -queue x86_1h -require v100 \
 -out /dccstor/dialog/sfeng/projects/transformers_dialdoc/logs/$config.out \
