@@ -698,10 +698,12 @@ class RagRetriever:
                     scoring_func = nonlinear
                 ids, vectors, scores = self.index.get_top_docs_multihandle(curr_h_s, hist_h_s, scoring_func,
                                                                            n_docs, dialog_lengths=dialog_lengths)
-            elif self.config.scoring_func == "reranking":
-                ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs)
+            elif self.config.scoring_func in ["reranking_original", "reranking"] :
+                ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs, None)
             elif self.config.scoring_func == "reranking2":
                 ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs, dialog_lengths=dialog_lengths)
+            elif self.config.scoring_func in ["current_original", "current_pooled"]:
+                ids, vectors, scores = self.index.get_top_docs(curr_h_s, n_docs)
             else:
                 ids, vectors, scores = self.index.get_top_docs(comb_h_s, n_docs)
             logger.debug(
