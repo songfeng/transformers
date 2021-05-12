@@ -506,6 +506,14 @@ class RagRetriever:
         self.batch_size = config.retrieval_batch_size
 
         self.config = config
+        if config.scoring_func == "nonlinear":
+            logger.info("Using nonlinear scorer in RagRetriever")
+            self.nn_scorer = torch.nn.Sequential(
+                torch.nn.Linear(2, 2),
+                torch.nn.ReLU(),
+                torch.nn.Linear(2, 1),
+                torch.nn.ReLU()
+            )
         if self._init_retrieval:
             self.init_retrieval()
 
@@ -646,8 +654,12 @@ class RagRetriever:
         def linear2(a: List[int]):
             return a[0] + 0.5 * a[1]
 
-        def nonlinear(nnet: torch.nn.Module, a):
-            return nnet(a)
+        def linear3(a: List[int]):
+            return a[0] + 0.5 * a[1]
+
+        def nonlinear(a: List[int]):
+            with torch.no_grad():
+                return self.nn_scorer(a)
 
         combined_hidden_states_batched = self._chunk_tensor(combined_hidden_states, self.batch_size)
         current_hidden_states_batched = self._chunk_tensor(current_hidden_states, self.batch_size)
@@ -657,11 +669,13 @@ class RagRetriever:
         scores_batched = []
         for comb_h_s, curr_h_s, hist_h_s in zip(combined_hidden_states_batched, current_hidden_states_batched, history_hidden_states_batched):
             start_time = time.time()
-            if self.config.scoring_func in ["linear", "linear2", "nonlinear"]:
+            if self.config.scoring_func in ["linear", "linear2", "linear3", "nonlinear"]:
                 if self.config.scoring_func == "linear":
                     scoring_func = linear
                 elif self.config.scoring_func == "linear2":
                     scoring_func = linear2
+                elif self.config.scoring_func == "linear3":
+                    scoring_func = linear3
                 else:
                     scoring_func = nonlinear
                 ids, vectors, scores = self.index.get_top_docs_multihandle(curr_h_s, hist_h_s, scoring_func, n_docs)

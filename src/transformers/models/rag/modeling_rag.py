@@ -581,7 +581,7 @@ class RagModel(RagPreTrainedModel):
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
                 )
-                if self.config.scoring_func in ['linear', 'linear2', 'nonlinear', 'reranking']:
+                if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking']:
                     combined_out = question_enc_outputs.pooler_output
                     ## Split the dpr sequence output
                     sequence_output = question_enc_outputs.last_hidden_state
@@ -642,7 +642,7 @@ class RagModel(RagPreTrainedModel):
                     doc_scores = torch.bmm(
                         combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                     ).squeeze(1)
-                elif self.config.scoring_func in ['linear', 'linear2']:
+                elif self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear']:
                     doc_scores_curr = torch.bmm(
                         pooled_output_q.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                     ).squeeze(1)
@@ -653,8 +653,21 @@ class RagModel(RagPreTrainedModel):
 
                     if self.config.scoring_func == "linear":
                         doc_scores = doc_scores_curr + doc_scores_hist
-                    else:
+                    elif self.config.scoring_func == "linear2":
                         doc_scores = doc_scores_curr + 0.5 * doc_scores_hist
+                    elif self.config.scoring_func == "linear3":
+                        # TODO: linear 3 scoring
+                        doc_scores = doc_scores_curr + 0.5 * doc_scores_hist
+                    else:  # nonlinear
+                        bsz = doc_scores_curr.shape[0]
+                        doc_scores_curr_flattened = doc_scores_curr.flatten().unsqueeze(
+                            1)  # from (B, n_docs) to (Bxn_docs, 1)
+                        doc_scores_hist_flattened = doc_scores_hist.flatten().unsqueeze(
+                            1)  # from (B, n_docs) to (Bxn_docs, 1)
+                        scorer_inp = torch.cat([doc_scores_curr_flattened, doc_scores_hist_flattened],
+                                               dim=1)  # (Bxn_docs, 2)
+                        scores = self.retriever.nn_scorer(scorer_inp)
+                        doc_scores = scores.reshape((bsz, -1))
 
             else:
                 assert (
@@ -1128,12 +1141,6 @@ class RagTokenForGeneration(RagPreTrainedModel):
         question_encoder: Optional[PreTrainedModel] = None,
         generator: Optional[PreTrainedModel] = None,
         retriever: Optional = None,
-        scorer: Optional = torch.nn.Sequential(
-                torch.nn.Linear(2, 2),
-                torch.nn.ReLU(),
-                torch.nn.Linear(2, 1),
-                torch.nn.ReLU()
-            ),
         **kwargs,
     ):
         assert config is not None or (
@@ -1191,10 +1198,6 @@ class RagTokenForGeneration(RagPreTrainedModel):
     @property
     def question_encoder(self):
         return self.rag.question_encoder
-
-    @property
-    def scorer(self):
-        return self.rag.scorer
 
     @staticmethod
     def _reorder_cache(past, beam_idx):
@@ -1523,7 +1526,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
 
         # retrieve docs
         if self.retriever is not None and context_input_ids is None:
-            if self.config.scoring_func in ['linear', 'linear2', 'nonlinear', 'reranking']:
+            if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking']:
                 dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
                 combined_out = dpr_out.pooler_output
                 ## Split the dpr sequence output
@@ -1583,7 +1586,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )
-            elif self.config.scoring_func in ['linear', 'linear2']:
+            elif self.config.scoring_func in ['linear', 'linear2', "linear3", "nonlinear"]:
                 doc_scores_curr = torch.bmm(
                     pooled_output_0.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                 ).squeeze(1)
@@ -1594,8 +1597,18 @@ class RagTokenForGeneration(RagPreTrainedModel):
 
                 if self.config.scoring_func == "linear":
                     doc_scores = doc_scores_curr + doc_scores_hist
-                else:
+                elif self.config.scoring_func == "linear2":
                     doc_scores = doc_scores_curr + 0.5 * doc_scores_hist
+                elif self.config.scoring_func == "linear3":
+                    # TODO
+                    doc_scores = doc_scores_curr + 0.5 * doc_scores_hist
+                else: # nonlinear
+                    bsz = doc_scores_curr.shape[0]
+                    doc_scores_curr_flattened = doc_scores_curr.flatten().unsqueeze(1)   # from (B, n_docs) to (Bxn_docs, 1)
+                    doc_scores_hist_flattened = doc_scores_hist.flatten().unsqueeze(1)  # from (B, n_docs) to (Bxn_docs, 1)
+                    scorer_inp = torch.cat([doc_scores_curr_flattened, doc_scores_hist_flattened], dim=1)  # (Bxn_docs, 2)
+                    scores = self.retriever.nn_scorer(scorer_inp)
+                    doc_scores = scores.reshape((bsz, -1))
 
         assert (
             context_input_ids.shape[0] % n_docs
