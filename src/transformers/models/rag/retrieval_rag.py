@@ -331,6 +331,11 @@ class HFIndexBase(Index):
         scores = []
         ids = []
         for r in range(len(ids1)):
+            if dialog_lengths:
+                if dialog_lengths[r][0] < 10:
+                    ids.append(ids1[r])
+                    scores.append(scores1[r])
+                    continue
             n1, n2 = len(ids1[r]), len(ids2[r])
             i = j = k = 0
             while i < n1 and j < n2:
@@ -695,6 +700,8 @@ class RagRetriever:
                                                                            n_docs, dialog_lengths=dialog_lengths)
             elif self.config.scoring_func == "reranking":
                 ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs)
+            elif self.config.scoring_func == "reranking2":
+                ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs, dialog_lengths=dialog_lengths)
             else:
                 ids, vectors, scores = self.index.get_top_docs(comb_h_s, n_docs)
             logger.debug(
