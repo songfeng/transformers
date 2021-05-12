@@ -581,8 +581,18 @@ class RagModel(RagPreTrainedModel):
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
                 )
-                if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
+                # if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
+                if self.config.scoring_func != "original":
                     combined_out = question_enc_outputs.pooler_output
+
+                    ## Get mask for current turn input ids
+                    curr_turn_mask = torch.logical_xor(attention_mask, token_type_ids)
+                    current_turn_input_ids = input_ids * curr_turn_mask
+                    current_turn_only_out = self.question_encoder(current_turn_input_ids,
+                                                                  attention_mask=curr_turn_mask.long(),
+                                                                  return_dict=True)
+                    current_turn_output = current_turn_only_out.pooler_output
+
                     ## Split the dpr sequence output
                     sequence_output = question_enc_outputs.last_hidden_state
                     attn_mask = self.get_attn_mask(input_ids)
@@ -603,10 +613,15 @@ class RagModel(RagPreTrainedModel):
                     pooled_output_q = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
                     pooled_output_h = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
 
+                    if self.config.scoring_func in ['reranking_original', 'current_original']:
+                        current_out = current_turn_output
+                    else:
+                        current_out = pooled_output_q
+
                     retriever_outputs = self.retriever(
                         input_ids,
                         combined_out.cpu().detach().to(torch.float32).numpy(),
-                        pooled_output_q.cpu().detach().to(torch.float32).numpy(),
+                        current_out.cpu().detach().to(torch.float32).numpy(),
                         pooled_output_h.cpu().detach().to(torch.float32).numpy(),
                         prefix=self.generator.config.prefix,
                         n_docs=n_docs,
@@ -642,10 +657,11 @@ class RagModel(RagPreTrainedModel):
                 doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
-                if self.config.scoring_func in ['original', 'reranking', 'reranking2']:
-                    doc_scores = torch.bmm(
-                        combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
-                    ).squeeze(1)
+                if self.config.scoring_func in ['reranking', 'reranking2', 'original', 'reranking_original',
+                                                'current_original', 'current_pooled']:
+                    doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
+                        1
+                    )
                 elif self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear']:
                     doc_scores_curr = torch.bmm(
                         pooled_output_q.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
@@ -1531,9 +1547,18 @@ class RagTokenForGeneration(RagPreTrainedModel):
         # retrieve docs
         dialog_lengths = None
         if self.retriever is not None and context_input_ids is None:
-            if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
+            # if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2', 'reranking_orig']:
+            if self.config.scoring_func != "original":
                 dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
                 combined_out = dpr_out.pooler_output
+
+                ## Get mask for current turn input ids
+                curr_turn_mask = torch.logical_xor(attention_mask, token_type_ids)
+                current_turn_input_ids = input_ids * curr_turn_mask
+                current_turn_only_out = self.question_encoder(current_turn_input_ids, attention_mask=curr_turn_mask.long(),
+                                                         return_dict=True)
+                current_turn_output = current_turn_only_out.pooler_output
+
                 ## Split the dpr sequence output
                 sequence_output = dpr_out.last_hidden_state
                 attn_mask = self.get_attn_mask(input_ids)
@@ -1554,10 +1579,15 @@ class RagTokenForGeneration(RagPreTrainedModel):
                 pooled_output_0 = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
                 pooled_output_1 = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
 
+                if self.config.scoring_func in ['reranking_original', 'current_original']:
+                    current_out = current_turn_output
+                else:
+                    current_out = pooled_output_0
+
                 out = self.retriever(
                     input_ids,
                     combined_out.cpu().detach().to(torch.float32).numpy(),
-                    pooled_output_0.cpu().detach().to(torch.float32).numpy(),
+                    current_out.cpu().detach().to(torch.float32).numpy(),
                     pooled_output_1.cpu().detach().to(torch.float32).numpy(),
                     prefix=self.generator.config.prefix,
                     n_docs=n_docs,
@@ -1591,7 +1621,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            if self.config.scoring_func in ['reranking', 'reranking2', 'original']:
+            if self.config.scoring_func in ['reranking', 'reranking2', 'original', 'reranking_original', 'current_original', 'current_pooled']:
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )
