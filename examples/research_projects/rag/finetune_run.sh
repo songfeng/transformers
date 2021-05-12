@@ -21,12 +21,11 @@ KB_FOLDER=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowled
 DATA_DIR=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_$format
 config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score
 
-jbsub -cores 4+$core -mem 128g -queue x86_1h -require v100 \
+jbsub -cores 4+$core -mem 128g -queue x86_24h -require v100 \
 -out /dccstor/dialog/sfeng/projects/transformers_dialdoc/logs/$config.out \
 -err /dccstor/dialog/sfeng/projects/transformers_dialdoc/logs/$config.err \
 python finetune_rag.py \
     --segmentation $seg \
-    --do_marginalize 1 \
     --data_dir $DATA_DIR \
     --scoring_func $score \
     --cache_dir $YOUR_PROJ_DIR/cache \
