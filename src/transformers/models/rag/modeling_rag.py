@@ -581,7 +581,7 @@ class RagModel(RagPreTrainedModel):
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
                 )
-                if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking']:
+                if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
                     combined_out = question_enc_outputs.pooler_output
                     ## Split the dpr sequence output
                     sequence_output = question_enc_outputs.last_hidden_state
@@ -641,7 +641,7 @@ class RagModel(RagPreTrainedModel):
                 doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
-                if self.config.scoring_func in ['original', 'reranking']:
+                if self.config.scoring_func in ['original', 'reranking', 'reranking2']:
                     doc_scores = torch.bmm(
                         combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                     ).squeeze(1)
@@ -1530,7 +1530,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
         # retrieve docs
         dialog_lengths = None
         if self.retriever is not None and context_input_ids is None:
-            if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking']:
+            if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
                 dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
                 combined_out = dpr_out.pooler_output
                 ## Split the dpr sequence output
@@ -1589,7 +1589,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            if self.config.scoring_func in ['reranking', 'original']:
+            if self.config.scoring_func in ['reranking', 'reranking2', 'original']:
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )
