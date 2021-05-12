@@ -576,7 +576,7 @@ class RagModel(RagPreTrainedModel):
         )
         # encoder_outputs are pre-computed during RAG-token generation
         if encoder_outputs is None:
-
+            dialog_lengths = None
             if has_to_retrieve:
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
@@ -623,6 +623,7 @@ class RagModel(RagPreTrainedModel):
                         combined_out.cpu().detach().to(torch.float32).numpy(),  ## sending dummy
                         prefix=self.generator.config.prefix,
                         n_docs=n_docs,
+                        dialog_lengths=dialog_lengths,
                         return_tensors="pt",
                     )
 
@@ -1572,6 +1573,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     combined_out.cpu().detach().to(torch.float32).numpy(), ## sending dummy
                     prefix=self.generator.config.prefix,
                     n_docs=n_docs,
+                    dialog_lengths=dialog_lengths,
                     return_tensors="pt",
                 )
 
