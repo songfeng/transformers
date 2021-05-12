@@ -239,7 +239,7 @@ class HFIndexBase(Index):
         return new_ids, new_scores
 
     def get_top_docs_multihandle(self, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray,
-                                 scoring_func, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                                 scoring_func, n_docs=5, dialog_lengths=None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         total_docs = len(self.dataset)
         scores_current, ids_current = self.dataset.search_batch("embeddings", current_hidden_states, 500)
         scores_history, ids_history = self.dataset.search_batch("embeddings", history_hidden_states, 500)
@@ -249,6 +249,11 @@ class HFIndexBase(Index):
         for i in range(len(ids_current)):
             ids_current_i, scores_current_i = ids_current[i], scores_current[i]
             ids_history_i, scores_history_i = ids_history[i], scores_history[i]
+
+            scaling_factor = None
+            if dialog_lengths:
+                curr_length, history_length = dialog_lengths[i]
+                scaling_factor = 1.2 if curr_length > 10 else 1.0
 
             ## common ids between question and history
             common_ids = set(ids_current_i).intersection(set(ids_history_i))
@@ -299,7 +304,10 @@ class HFIndexBase(Index):
             for id, q_score, h_score in zip(q_doc_ids, q_doc_scores, h_doc_scores):
                 rescored_ids.append(id)
                 inp = torch.Tensor([q_score, h_score])
-                rescored_scores.append(scoring_func(inp).tolist())
+                if scaling_factor:
+                    rescored_scores.append(scoring_func(inp, scaling_factor).tolist())
+                else:
+                    rescored_scores.append(scoring_func(inp).tolist())
 
             rescored_scores, rescored_ids = zip(*sorted(zip(rescored_scores, rescored_ids), reverse=True))
             rescored_scores, rescored_ids = list(rescored_scores), list(rescored_ids)
@@ -314,7 +322,8 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack([vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))])
         return np.array(final_ids), np.array(vectors), np.array(final_scores)  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, n_docs=5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_top_docs_rerank(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray,
+                            n_docs=5, dialog_lengths=None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         scores1, ids1 = self.dataset.search_batch("embeddings", combined_hidden_states, n_docs)
         scores2, ids2 = self.dataset.search_batch("embeddings", current_hidden_states, n_docs)
         ids3 = [[None] * (n_docs * 2)] * len(ids1)
@@ -647,15 +656,16 @@ class RagRetriever:
     def _chunk_tensor(self, t: Iterable, chunk_size: int) -> List[Iterable]:
         return [t[i : i + chunk_size] for i in range(0, len(t), chunk_size)]
 
-    def _main_retrieve(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _main_retrieve(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray,
+                       history_hidden_states: np.ndarray, n_docs: int, dialog_lengths: List[Tuple]=None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         def linear(a: List[int]):
             return sum(a)
 
         def linear2(a: List[int]):
             return a[0] + 0.5 * a[1]
 
-        def linear3(a: List[int]):
-            return a[0] + 0.5 * a[1]
+        def linear3(a: List[int], scaling_factor=1):
+            return scaling_factor * a[0] + 0.5 * a[1]
 
         def nonlinear(a: List[int]):
             with torch.no_grad():
@@ -671,14 +681,18 @@ class RagRetriever:
             start_time = time.time()
             if self.config.scoring_func in ["linear", "linear2", "linear3", "nonlinear"]:
                 if self.config.scoring_func == "linear":
+                    dialog_lengths = None
                     scoring_func = linear
                 elif self.config.scoring_func == "linear2":
+                    dialog_lengths = None
                     scoring_func = linear2
                 elif self.config.scoring_func == "linear3":
                     scoring_func = linear3
                 else:
+                    dialog_lengths = None
                     scoring_func = nonlinear
-                ids, vectors, scores = self.index.get_top_docs_multihandle(curr_h_s, hist_h_s, scoring_func, n_docs)
+                ids, vectors, scores = self.index.get_top_docs_multihandle(curr_h_s, hist_h_s, scoring_func,
+                                                                           n_docs, dialog_lengths=dialog_lengths)
             elif self.config.scoring_func == "reranking":
                 ids, vectors, scores = self.index.get_top_docs_rerank(comb_h_s, curr_h_s, n_docs)
             else:
@@ -695,7 +709,8 @@ class RagRetriever:
             np.array(scores),
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def retrieve(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
+    def retrieve(self, combined_hidden_states: np.ndarray, current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int,
+                 dialog_lengths: List[Tuple] = None) -> \
             Tuple[np.ndarray, np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``.
@@ -716,15 +731,17 @@ class RagRetriever:
             - **doc_dicts** (:obj:`List[dict]`): The :obj:`retrieved_doc_embeds` examples per query.
         """
 
-        doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states, current_hidden_states, history_hidden_states, n_docs)
+        doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states, current_hidden_states,
+                                                                        history_hidden_states, n_docs, dialog_lengths)
         return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
     def __call__(
         self,
         question_input_ids: List[List[int]],
-        combined_hidden_states: List[List[int]],
+        combined_hidden_states: np.ndarray,
         current_hidden_states: np.ndarray,
         history_hidden_states: np.ndarray,
+        dialog_lengths: None,
         prefix=None,
         n_docs=None,
         return_tensors=None,
@@ -765,8 +782,13 @@ class RagRetriever:
 
         n_docs = n_docs if n_docs is not None else self.n_docs
         prefix = prefix if prefix is not None else self.config.generator.prefix
-        retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(combined_hidden_states=combined_hidden_states,
-        current_hidden_states=current_hidden_states,history_hidden_states=history_hidden_states,n_docs=n_docs)
+        retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(
+            combined_hidden_states=combined_hidden_states,
+            current_hidden_states=current_hidden_states,
+            history_hidden_states=history_hidden_states,
+            n_docs=n_docs,
+            dialog_lengths=dialog_lengths
+        )
 
         input_strings = self.question_encoder_tokenizer.batch_decode(question_input_ids, skip_special_tokens=True)
         context_input_ids, context_attention_mask = self.postprocess_docs(

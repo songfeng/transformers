@@ -5,7 +5,7 @@ YOUR_PROJ_DIR="/dccstor/dialog/sfeng/transformers_doc2dial"
 export TRANSFORMERS_CACHE=$YOUR_PROJ_DIR/cache
 task=grounding
 seg=structure
-score=linear
+score=linear3
 format=two
 dpr=dpr_new
 # dpr=dpr_bi_$seg
@@ -39,9 +39,9 @@ python finetune_rag.py \
     --do_train \
     --do_predict \
     --gpus $core \
-    --n_train -1 \
-    --n_val -1 \
-    --n_test -1 \
+    --n_train 12 \
+    --n_val 3 \
+    --n_test 3 \
     --n_docs $topn \
     --train_batch_size 6 \
     --eval_batch_size 1 \

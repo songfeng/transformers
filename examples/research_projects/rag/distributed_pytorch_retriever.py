@@ -89,7 +89,8 @@ class RagPyTorchDistributedRetriever(RagRetriever):
         ifname = next((addr for addr in addrs if addr.startswith("e")), None)
         return ifname
 
-    def retrieve(self, combined_hidden_states: np.ndarray,current_hidden_states: np.ndarray, history_hidden_states: np.ndarray, n_docs: int) -> \
+    def retrieve(self, combined_hidden_states: np.ndarray,current_hidden_states: np.ndarray,
+                 history_hidden_states: np.ndarray, n_docs: int, dialog_lengths: List[Tuple]=None) -> \
             Tuple[np.ndarray, np.ndarray, np.ndarray, List[dict]]:
         """
         Retrieves documents for specified ``question_hidden_states``. The main process, which has the access to the index stored in memory, gathers queries
@@ -116,7 +117,8 @@ class RagPyTorchDistributedRetriever(RagRetriever):
             doc_ids, retrieved_doc_embeds, doc_scores = self._main_retrieve(combined_hidden_states,
                                                                 current_hidden_states,
                                                                 history_hidden_states,
-                                                                n_docs)
+                                                                n_docs,
+                                                                dialog_lengths)
             # return retrieved_doc_embeds, doc_ids, self.index.get_doc_dicts(doc_ids)
             return retrieved_doc_embeds, doc_ids, doc_scores, self.index.get_doc_dicts(doc_ids)
 
@@ -145,7 +147,7 @@ class RagPyTorchDistributedRetriever(RagRetriever):
             comb_h_s = torch.cat(gather_list_1).numpy()
             curr_h_s = torch.cat(gather_list_2).numpy()
             hist_h_s = torch.cat(gather_list_3).numpy()
-            ids, vectors, scores = self._main_retrieve(comb_h_s, curr_h_s, hist_h_s, n_docs)
+            ids, vectors, scores = self._main_retrieve(comb_h_s, curr_h_s, hist_h_s, n_docs, dialog_lengths)
             ids, vectors, scores = torch.tensor(ids), torch.tensor(vectors), torch.tensor(scores)
             scatter_ids = self._chunk_tensor(ids, n_queries)
             scatter_vectors = self._chunk_tensor(vectors, n_queries)
