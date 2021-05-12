@@ -576,12 +576,12 @@ class RagModel(RagPreTrainedModel):
         )
         # encoder_outputs are pre-computed during RAG-token generation
         if encoder_outputs is None:
-
+            dialog_lengths = None
             if has_to_retrieve:
                 question_enc_outputs = self.question_encoder(
                     input_ids, attention_mask=attention_mask, return_dict=True
                 )
-                if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking']:
+                if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
                     combined_out = question_enc_outputs.pooler_output
                     ## Split the dpr sequence output
                     sequence_output = question_enc_outputs.last_hidden_state
@@ -589,11 +589,13 @@ class RagModel(RagPreTrainedModel):
                     ## Split sequence output, and pool each sequence
                     seq_out_0 = []  # last turn, if query; doc structure if passage
                     seq_out_1 = []  # dial history, if query; passage text if passage
+                    dialog_lengths = []
                     for i in range(sequence_output.shape[0]):
                         seq_out_masked = sequence_output[i, attn_mask[i], :]
                         segment_masked = token_type_ids[i, attn_mask[i]]
                         seq_out_masked_0 = seq_out_masked[segment_masked == 0, :]
                         seq_out_masked_1 = seq_out_masked[segment_masked == 1, :]
+                        dialog_lengths.append((len(seq_out_masked_0), len(seq_out_masked_1)))
                         ### perform pooling
                         seq_out_0.append(self.mean_pool(seq_out_masked_0))
                         seq_out_1.append(self.mean_pool(seq_out_masked_1))
@@ -608,6 +610,7 @@ class RagModel(RagPreTrainedModel):
                         pooled_output_h.cpu().detach().to(torch.float32).numpy(),
                         prefix=self.generator.config.prefix,
                         n_docs=n_docs,
+                        dialog_lengths=dialog_lengths,
                         return_tensors="pt",
                     )
                 else:
@@ -620,6 +623,7 @@ class RagModel(RagPreTrainedModel):
                         combined_out.cpu().detach().to(torch.float32).numpy(),  ## sending dummy
                         prefix=self.generator.config.prefix,
                         n_docs=n_docs,
+                        dialog_lengths=dialog_lengths,
                         return_tensors="pt",
                     )
 
@@ -638,7 +642,7 @@ class RagModel(RagPreTrainedModel):
                 doc_scores = retrieved_doc_scores.to(combined_out)
 
                 # compute doc_scores
-                if self.config.scoring_func in ['original', 'reranking']:
+                if self.config.scoring_func in ['original', 'reranking', 'reranking2']:
                     doc_scores = torch.bmm(
                         combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)
                     ).squeeze(1)
@@ -1527,7 +1531,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
         # retrieve docs
         dialog_lengths = None
         if self.retriever is not None and context_input_ids is None:
-            if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking']:
+            if self.config.scoring_func in ['linear', 'linear2', 'linear3', 'nonlinear', 'reranking', 'reranking2']:
                 dpr_out = self.question_encoder(input_ids, attention_mask=attention_mask, return_dict=True)
                 combined_out = dpr_out.pooler_output
                 ## Split the dpr sequence output
@@ -1569,6 +1573,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     combined_out.cpu().detach().to(torch.float32).numpy(), ## sending dummy
                     prefix=self.generator.config.prefix,
                     n_docs=n_docs,
+                    dialog_lengths=dialog_lengths,
                     return_tensors="pt",
                 )
 
@@ -1586,7 +1591,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
             doc_scores = retrieved_doc_scores.to(combined_out)
 
             # compute doc_scores
-            if self.config.scoring_func in ['reranking', 'original']:
+            if self.config.scoring_func in ['reranking', 'reranking2', 'original']:
                 doc_scores = torch.bmm(combined_out.unsqueeze(1), retrieved_doc_embeds.transpose(1, 2)).squeeze(
                     1
                 )
