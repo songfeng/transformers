@@ -658,6 +658,8 @@ def main(args=None, model=None) -> GenerativeQAModule:
         accelerator=CustomAccel() if args.gpus > 1 else None,
         profiler=pl.profiler.AdvancedProfiler() if args.profile else None,
     )
+    if model.hparams.bm25:
+        model.hparams.bm25 = None
     pickle_save(model.hparams, model.output_dir / "hparams.pkl")
 
     if not args.do_predict:
