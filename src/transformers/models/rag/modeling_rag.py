@@ -517,6 +517,8 @@ class RagModel(RagPreTrainedModel):
         self.question_encoder = question_encoder
         self.generator = generator
 
+        self.bm25 = kwargs.pop("bm25", None)
+
     @staticmethod
     def mean_pool(vector: torch.LongTensor):
         return vector.sum(axis=0) / vector.shape[0]
@@ -628,6 +630,7 @@ class RagModel(RagPreTrainedModel):
                         n_docs=n_docs,
                         dialog_lengths=dialog_lengths,
                         return_tensors="pt",
+                        bm25=self.bm25,
                     )
                 else:
                     combined_out = question_enc_outputs[0]  # hidden states of question encoder
@@ -1177,11 +1180,14 @@ class RagTokenForGeneration(RagPreTrainedModel):
         super().__init__(config)
 
         # instantiate model
-        self.rag = RagModel(config=config, question_encoder=question_encoder, generator=generator, retriever=retriever)
         if bm25:
             logger.info("Using bm25")
+            self.rag = RagModel(config=config, question_encoder=question_encoder, generator=generator,
+                                retriever=retriever, bm25=bm25)
             self.bm25 = bm25
         else:
+            self.rag = RagModel(config=config, question_encoder=question_encoder, generator=generator,
+                                retriever=retriever)
             self.bm25 = None
 
     def set_retriever(self, retriever: RagRetriever):
