@@ -630,7 +630,6 @@ class RagModel(RagPreTrainedModel):
                         n_docs=n_docs,
                         dialog_lengths=dialog_lengths,
                         return_tensors="pt",
-                        bm25=self.bm25,
                     )
                 else:
                     combined_out = question_enc_outputs[0]  # hidden states of question encoder
@@ -644,6 +643,7 @@ class RagModel(RagPreTrainedModel):
                         n_docs=n_docs,
                         dialog_lengths=dialog_lengths,
                         return_tensors="pt",
+                        bm25=self.bm25,
                     )
 
                 context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_ids, retrieved_doc_scores = (
