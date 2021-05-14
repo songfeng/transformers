@@ -44,6 +44,13 @@ logger = logging.get_logger(__name__)
 LEGACY_INDEX_PATH = "https://storage.googleapis.com/huggingface-nlp/datasets/wiki_dpr/"
 
 
+def get_top_n_indices(bm25, query, n=5):
+    query = query.lower().split()
+    scores = bm25.get_scores(query)
+    scores_i = [(i, score) for i, score in enumerate(scores)]
+    sorted_indices = sorted(scores_i, key=lambda score: score[1], reverse=True)
+    return sorted_indices[:n]
+
 class Index:
     """
     A base class for the Indices encapsulated by the :class:`~transformers.RagRetriever`.
@@ -798,10 +805,15 @@ class RagRetriever:
         input_strings = self.question_encoder_tokenizer.batch_decode(question_input_ids, skip_special_tokens=True)
         if self.config.bm25:
             doc_ids = []
+            doc_scores = []
             for input_string in input_strings:
-                doc_ids.append(self.config.bm25.get(input_string, self.config.n_docs))
-                # doc_ids.append(get_top_n_indices(self.config.bm25, input_string, self.config.n_docs))
+                # doc_ids.append(self.config.bm25.get(input_string, [])[:self.config.n_docs])
+                # doc_scores = ???
+                sorted_indices = get_top_n_indices(self.config.bm25, input_string, self.config.n_docs)
+                doc_ids.append([x[0] for x in sorted_indices])
+                doc_scores.append([x[-1] for x in sorted_indices])
             docs = self.index.get_doc_dicts(np.array(doc_ids))
+
             retrieved_doc_embeds = [docs[i]["embeddings"] for i in range(len(doc_ids))]
         else:
             retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(

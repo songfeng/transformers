@@ -26,6 +26,15 @@ def load_bm25_results(in_path):
     return d_query_results
 
 
+def load_bm25(in_path):
+    from rank_bm25 import BM25Okapi
+    dataset = load_dataset("csv", data_files=[in_path], split="train", delimiter="\t", column_names=["title", "text"])
+    passages = [ex["text"] for ex in dataset]
+    passages_tokenized = [passage.strip().lower().split() for passage in passages]
+    bm25 = BM25Okapi(passages_tokenized)
+    return bm25
+
+
 def encode_line(tokenizer, line, max_length, padding_side, pad_to_max_length=True, return_tensors="pt"):
     extra_kw = {"add_prefix_space": True} if isinstance(tokenizer, BartTokenizer) and not line.startswith(" ") else {}
     tokenizer.padding_side = padding_side

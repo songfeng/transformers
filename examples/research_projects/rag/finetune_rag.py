@@ -59,6 +59,7 @@ from utils_rag import (  # noqa: E402 # isort:skip
     set_extra_model_params,
     Seq2SeqDataset,
     load_bm25_results,
+    load_bm25
 )
 
 # need the parent dir module
@@ -144,7 +145,8 @@ class GenerativeQAModule(BaseTransformer):
         config.use_dummy_dataset = hparams.use_dummy_dataset
 
         if hparams.bm25:
-            hparams.bm25 = load_bm25_results(hparams.bm25)
+            # hparams.bm25 = load_bm25_results(hparams.bm25)
+            hparams.bm25 = load_bm25(hparams.bm25)
             config.bm25 = hparams.bm25
 
         # set extra_model_params for generator configs and load_model
