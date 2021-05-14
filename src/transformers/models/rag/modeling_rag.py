@@ -1181,6 +1181,8 @@ class RagTokenForGeneration(RagPreTrainedModel):
         if bm25:
             logger.info("Using bm25")
             self.bm25 = bm25
+        else:
+            self.bm25 = None
 
     def set_retriever(self, retriever: RagRetriever):
         self.rag.retriever = retriever
@@ -1610,6 +1612,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     n_docs=n_docs,
                     dialog_lengths=dialog_lengths,
                     return_tensors="pt",
+                    bm25 = self.bm25,
                 )
 
             context_input_ids, context_attention_mask, retrieved_doc_embeds, retrieved_doc_scores = (
