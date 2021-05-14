@@ -28,6 +28,7 @@ from ...utils import logging
 from .configuration_rag import RagConfig
 from .retrieval_rag import RagRetriever
 
+import pdb
 
 logger = logging.get_logger(__name__)
 
@@ -1645,6 +1646,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
                     bsz = doc_scores_curr.shape[0]
                     doc_scores_curr_flattened = doc_scores_curr.flatten().unsqueeze(1)   # from (B, n_docs) to (Bxn_docs, 1)
                     doc_scores_hist_flattened = doc_scores_hist.flatten().unsqueeze(1)  # from (B, n_docs) to (Bxn_docs, 1)
+                    pdb.set_trace()
                     scorer_inp = torch.cat([doc_scores_curr_flattened, doc_scores_hist_flattened], dim=1)  # (Bxn_docs, 2)
                     scores = self.retriever.nn_scorer(scorer_inp)
                     doc_scores = scores.reshape((bsz, -1))
