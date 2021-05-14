@@ -146,7 +146,7 @@ class GenerativeQAModule(BaseTransformer):
 
         if hparams.bm25:
             # hparams.bm25 = load_bm25_results(hparams.bm25)
-            hparams.bm25 = load_bm25(hparams.bm25)
+            bm25 = load_bm25(hparams.bm25)
             config.bm25 = hparams.bm25
 
         # set extra_model_params for generator configs and load_model
@@ -166,6 +166,7 @@ class GenerativeQAModule(BaseTransformer):
                 )
             model = self.model_class.from_pretrained(hparams.model_name_or_path, config=config, retriever=retriever)
             prefix = config.question_encoder.prefix
+            model.bm25 = bm25
         else:
             if hparams.prefix is not None:
                 config.prefix = hparams.prefix

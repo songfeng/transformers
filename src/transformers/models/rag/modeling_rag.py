@@ -1162,6 +1162,7 @@ class RagTokenForGeneration(RagPreTrainedModel):
         question_encoder: Optional[PreTrainedModel] = None,
         generator: Optional[PreTrainedModel] = None,
         retriever: Optional = None,
+        bm25: Optional = None,
         **kwargs,
     ):
         assert config is not None or (
@@ -1177,6 +1178,9 @@ class RagTokenForGeneration(RagPreTrainedModel):
 
         # instantiate model
         self.rag = RagModel(config=config, question_encoder=question_encoder, generator=generator, retriever=retriever)
+        if bm25:
+            logger.info("Using bm25")
+            self.bm25 = bm25
 
     def set_retriever(self, retriever: RagRetriever):
         self.rag.retriever = retriever
