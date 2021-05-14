@@ -29,7 +29,10 @@ def load_bm25_results(in_path):
 def load_bm25(in_path):
     from rank_bm25 import BM25Okapi
     dataset = load_dataset("csv", data_files=[in_path], split="train", delimiter="\t", column_names=["title", "text"])
-    passages = [ex["text"] for ex in dataset]
+    passages = [] 
+    for ex in dataset:
+        for ele in ex['text'].split("####"):
+            passages.append(ele)
     passages_tokenized = [passage.strip().lower().split() for passage in passages]
     bm25 = BM25Okapi(passages_tokenized)
     return bm25
