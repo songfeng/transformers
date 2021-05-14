@@ -518,6 +518,8 @@ class RagModel(RagPreTrainedModel):
         self.generator = generator
 
         self.bm25 = kwargs.pop("bm25", None)
+        if self.bm25:
+            logger.info("Using BM25 inside RAG Model")
 
     @staticmethod
     def mean_pool(vector: torch.LongTensor):

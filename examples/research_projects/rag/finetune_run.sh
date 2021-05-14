@@ -1,25 +1,25 @@
 # conda activate /dccstor/dialog/sivasp/ENV/rag_transformers
 # cd /dccstor/dialog/sivasp/transformers/examples/research_projects/rag
 export PYTHONPATH="../":"${PYTHONPATH}"
-export HF_HOME="/dccstor/dialog/sfeng/hf_home"
+#export HF_HOME="/dccstor/dialog/sfeng/hf_home"
 export TOKENIZERS_PARALLELISM=false
 YOUR_PROJ_DIR="/dccstor/dialog/sfeng/transformers_doc2dial"
 export TRANSFORMERS_CACHE=$YOUR_PROJ_DIR/cache
 task=grounding # generation
 seg=token #  token
-score=bm25
+score=original
 format=two
 dpr=dpr_new
 #dpr=dpr_bi_$seg
 MODEL_NAME_OR_PATH=/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints/rag-$dpr
 core=1
-epoch=10
+epoch=15
 sourcelen=128
 targetlen=50
 topn=5
 KB_FOLDER=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_knowledge_dataset-$seg-$dpr
 DATA_DIR=/dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_$format
-config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score
+config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-bm25
 
 jbsub -cores 4+$core -mem 128g -queue x86_24h -require v100 \
 -out /dccstor/dialog/sfeng/projects/transformers_dialdoc/logs/$config.out \
@@ -41,9 +41,9 @@ python finetune_rag.py \
     --do_train \
     --do_predict \
     --gpus $core \
-    --n_train 1000 \
-    --n_val 200 \
-    --n_test 200 \
+    --n_train -1 \
+    --n_val -1 \
+    --n_test -1 \
     --n_docs $topn \
     --train_batch_size 6 \
     --eval_batch_size 1 \
