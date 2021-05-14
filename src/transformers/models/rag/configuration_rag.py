@@ -97,6 +97,7 @@ class RagConfig(PretrainedConfig):
         title_sep=" / ",
         doc_sep=" // ",
         n_docs=5,
+        bm25=None,
         segmentation="token",
         max_combined_length=300,
         multihandle=False,
@@ -151,6 +152,7 @@ class RagConfig(PretrainedConfig):
         self.title_sep = title_sep
         self.doc_sep = doc_sep
         self.n_docs = n_docs
+        self.bm25 = bm25
         self.segmentation = segmentation
         self.max_combined_length = max_combined_length
 

@@ -58,6 +58,7 @@ from utils_rag import (  # noqa: E402 # isort:skip
     save_json,
     set_extra_model_params,
     Seq2SeqDataset,
+    load_bm25_results,
 )
 
 # need the parent dir module
@@ -141,6 +142,10 @@ class GenerativeQAModule(BaseTransformer):
         config.passages_path = hparams.passages_path or config.passages_path
         config.index_path = hparams.index_path or config.index_path
         config.use_dummy_dataset = hparams.use_dummy_dataset
+
+        if hparams.bm25:
+            hparams.bm25 = load_bm25_results(hparams.bm25)
+            config.bm25 = hparams.bm25
 
         # set extra_model_params for generator configs and load_model
         extra_model_params = ("encoder_layerdrop", "decoder_layerdrop", "attention_dropout", "dropout")
@@ -416,6 +421,12 @@ class GenerativeQAModule(BaseTransformer):
             type=str,
             help="The maximum total input sequence length after tokenization. Sequences longer "
             "than this will be truncated, sequences shorter will be padded.",
+        )
+        parser.add_argument(
+            "--bm25",
+            default=None,
+            type=str,
+            help="BM25 result folder",
         )
         parser.add_argument(
             "--max_combined_length",

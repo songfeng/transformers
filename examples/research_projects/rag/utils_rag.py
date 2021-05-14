@@ -18,6 +18,13 @@ from torch.utils.data import Dataset
 
 from transformers import BartTokenizer, RagTokenizer, T5Tokenizer
 
+from datasets import load_dataset
+
+
+def load_bm25_results(in_path):
+    d_query_results = {}
+    return d_query_results
+
 
 def encode_line(tokenizer, line, max_length, padding_side, pad_to_max_length=True, return_tensors="pt"):
     extra_kw = {"add_prefix_space": True} if isinstance(tokenizer, BartTokenizer) and not line.startswith(" ") else {}

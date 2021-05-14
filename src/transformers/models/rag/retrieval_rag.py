@@ -794,15 +794,23 @@ class RagRetriever:
 
         n_docs = n_docs if n_docs is not None else self.n_docs
         prefix = prefix if prefix is not None else self.config.generator.prefix
-        retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(
-            combined_hidden_states=combined_hidden_states,
-            current_hidden_states=current_hidden_states,
-            history_hidden_states=history_hidden_states,
-            n_docs=n_docs,
-            dialog_lengths=dialog_lengths
-        )
-
+ 
         input_strings = self.question_encoder_tokenizer.batch_decode(question_input_ids, skip_special_tokens=True)
+        if self.config.bm25:
+            doc_ids = []
+            for input_string in input_strings:
+                doc_ids.append(self.config.bm25.get(input_string, self.config.n_docs))
+                # doc_ids.append(get_top_n_indices(self.config.bm25, input_string, self.config.n_docs))
+            docs = self.index.get_doc_dicts(np.array(doc_ids))
+            retrieved_doc_embeds = [docs[i]["embeddings"] for i in range(len(doc_ids))]
+        else:
+            retrieved_doc_embeds, doc_ids, doc_scores, docs = self.retrieve(
+                combined_hidden_states=combined_hidden_states,
+                current_hidden_states=current_hidden_states,
+                history_hidden_states=history_hidden_states,
+                n_docs=n_docs,
+                dialog_lengths=dialog_lengths
+            )
         context_input_ids, context_attention_mask = self.postprocess_docs(
             docs, input_strings, prefix, n_docs, return_tensors=return_tensors
         )
