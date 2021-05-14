@@ -5,15 +5,15 @@ export HF_HOME="/dccstor/dialog/sfeng/hf_home"
 export TOKENIZERS_PARALLELISM=false
 YOUR_PROJ_DIR="/dccstor/dialog/sfeng/transformers_doc2dial"
 export TRANSFORMERS_CACHE=$YOUR_PROJ_DIR/cache
-task=generation # generation
-seg=structure #  token
-score=current_original
+task=grounding # generation
+seg=token #  token
+score=bm25
 format=two
 dpr=dpr_new
 #dpr=dpr_bi_$seg
 MODEL_NAME_OR_PATH=/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints/rag-$dpr
 core=1
-epoch=15
+epoch=10
 sourcelen=128
 targetlen=50
 topn=5
@@ -28,6 +28,7 @@ python finetune_rag.py \
     --segmentation $seg \
     --data_dir $DATA_DIR \
     --scoring_func $score \
+    --bm25 /dccstor/dialog/sfeng/projects/transformers_dialdoc/data_v2/dd_$task\_$seg\_two/doc2dial_$seg.csv \
     --cache_dir $YOUR_PROJ_DIR/cache \
     --output_dir $YOUR_PROJ_DIR/checkpoints/$config \
     --model_name_or_path $MODEL_NAME_OR_PATH \
@@ -40,9 +41,9 @@ python finetune_rag.py \
     --do_train \
     --do_predict \
     --gpus $core \
-    --n_train -1 \
-    --n_val -1 \
-    --n_test -1 \
+    --n_train 1000 \
+    --n_val 200 \
+    --n_test 200 \
     --n_docs $topn \
     --train_batch_size 6 \
     --eval_batch_size 1 \
