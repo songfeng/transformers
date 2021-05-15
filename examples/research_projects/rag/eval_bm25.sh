@@ -20,7 +20,7 @@ config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr$score-$split-$checkpoint
 jbsub -cores 4+1 -mem 128g -queue x86_1h -require v100 \
 -out $SFD/logs_eval/eval_re_$config.out \
 -err $SFD/logs_eval/eval_re_$config.err \
-python examples/rag/eval_rag.py \
+python eval_rag.py \
 --model_type $model \
 --passages_path $KB_FOLDER/my_knowledge_dataset \
 --index_path $KB_FOLDER/my_knowledge_dataset_hnsw_index.faiss \
