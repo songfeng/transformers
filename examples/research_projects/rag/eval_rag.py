@@ -15,7 +15,7 @@ from transformers import logging as transformers_logging
 
 
 sys.path.append(os.path.join(os.getcwd()))  # noqa: E402 # isort:skip
-from utils_rag import exact_match_score, f1_score  # noqa: E402 # isort:skip
+from utils_rag import exact_match_score, f1_score, load_bm25  # noqa: E402 # isort:skip
 
 
 logger = logging.getLogger(__name__)
@@ -98,13 +98,20 @@ def evaluate_batch_retrieval(args, rag_model, questions):
     question_enc_outputs = rag_model.rag.question_encoder(retriever_input_ids)
     question_enc_pool_output = question_enc_outputs[0]
 
-    result = rag_model.retriever(
-        retriever_input_ids,
-        question_enc_pool_output.cpu().detach().to(torch.float32).numpy(),
-        prefix=rag_model.rag.generator.config.prefix,
-        n_docs=rag_model.config.n_docs,
-        return_tensors="pt",
-    )
+    if args.bm25:
+        doc_ids = []
+        for input_string in questions:
+            doc_ids.append(get_top_n_indices(args.bm25, input_string, rag_model.config.n_docs))
+        all_docs = rag_model.retriever.index.get_doc_dicts(np.array(doc_ids))
+    else:
+
+        result = rag_model.retriever(
+            retriever_input_ids,
+            question_enc_pool_output.cpu().detach().to(torch.float32).numpy(),
+            prefix=rag_model.rag.generator.config.prefix,
+            n_docs=rag_model.config.n_docs,
+            return_tensors="pt",
+        )
     all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
     provenance_strings = []
     for docs in all_docs:
@@ -142,6 +149,12 @@ def evaluate_batch_e2e(args, rag_model, questions):
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--bm25",
+        type=str,
+        default=None,
+        help="file folder",
+    )
     parser.add_argument(
         "--model_type",
         choices=["rag_sequence", "rag_token", "bart"],
@@ -260,6 +273,9 @@ def main(args):
             model_kwargs["index_path"] = args.index_path
     else:
         model_class = BartForConditionalGeneration
+
+    if args.bm25:
+        bm25 = load_bm25(args.bm25)
 
     checkpoints = (
         [f.path for f in os.scandir(args.model_name_or_path) if f.is_dir()]
