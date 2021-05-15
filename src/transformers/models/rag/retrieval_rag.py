@@ -764,6 +764,7 @@ class RagRetriever:
         prefix=None,
         n_docs=None,
         return_tensors=None,
+        bm25 = None,
     ) -> BatchEncoding:
         """
         Retrieves documents for specified :obj:`question_hidden_states`.
@@ -809,7 +810,7 @@ class RagRetriever:
             for input_string in input_strings:
                 # doc_ids.append(self.config.bm25.get(input_string, [])[:self.config.n_docs])
                 # doc_scores = ???
-                sorted_indices = get_top_n_indices(self.config.bm25, input_string, self.config.n_docs)
+                sorted_indices = get_top_n_indices(bm25, input_string, self.config.n_docs)
                 doc_ids.append([x[0] for x in sorted_indices])
                 doc_scores.append([x[-1] for x in sorted_indices])
             docs = self.index.get_doc_dicts(np.array(doc_ids))

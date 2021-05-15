@@ -146,8 +146,10 @@ class GenerativeQAModule(BaseTransformer):
 
         if hparams.bm25:
             # hparams.bm25 = load_bm25_results(hparams.bm25)
-            hparams.bm25 = load_bm25(hparams.bm25)
+            bm25 = load_bm25(hparams.bm25)
             config.bm25 = hparams.bm25
+        else:
+            bm25 = None
 
         # set extra_model_params for generator configs and load_model
         extra_model_params = ("encoder_layerdrop", "decoder_layerdrop", "attention_dropout", "dropout")
@@ -164,8 +166,9 @@ class GenerativeQAModule(BaseTransformer):
                 retriever = RagRayDistributedRetriever.from_pretrained(
                     hparams.model_name_or_path, hparams.actor_handles, config=config
                 )
-            model = self.model_class.from_pretrained(hparams.model_name_or_path, config=config, retriever=retriever)
+            model = self.model_class.from_pretrained(hparams.model_name_or_path, config=config, retriever=retriever, bm25=bm25)
             prefix = config.question_encoder.prefix
+            model.bm25 = bm25
         else:
             if hparams.prefix is not None:
                 config.prefix = hparams.prefix
