@@ -32,7 +32,7 @@ python eval_rag.py \
 --evaluation_set $DATA_DIR/$split.source \
 --gold_data_path $DATA_DIR/$split.titles \
 --gold_data_mode ans \
---eval_batch_size 30 \
+--eval_batch_size 20 \
 --recalculate \
 --predictions_path $SFD/results/eval-$config-re.txt
 # --eval_all_checkpoints \
