@@ -229,6 +229,7 @@ def evaluate_batch_retrieval(args, rag_model, questions, old_q=None):
         all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
         doc_ids = result.doc_ids
     provenance_strings = []
+    pdb.set_trace()
     for docs in all_docs:
         provenance = [strip_title(title) for title in docs["title"]]
         # provenance_strings.append("\t".join(provenance))
