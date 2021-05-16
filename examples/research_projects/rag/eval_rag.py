@@ -204,6 +204,7 @@ def evaluate_batch_retrieval(args, rag_model, questions):
             return_tensors="pt",
         )
         all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
+        doc_ids = result.doc_ids
     else:
         result = rag_model.retriever(
             retriever_input_ids,
