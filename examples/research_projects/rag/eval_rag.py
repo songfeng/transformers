@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO)
 
 transformers_logging.set_verbosity_info()
 
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+# os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 def get_top_n_indices(bm25, query, n=5):
     query = query.lower().split()
@@ -187,6 +187,7 @@ def evaluate_batch_retrieval(args, rag_model, questions):
         doc_ids = []
         doc_scores = []
         for input_string in questions:
+            input_string = " [SEP] ".join(input_string)
             sorted_indices = get_top_n_indices(rag_model.bm25, input_string, rag_model.config.n_docs)
             doc_ids.append([x[0] for x in sorted_indices])
             doc_scores.append([x[-1] for x in sorted_indices])
