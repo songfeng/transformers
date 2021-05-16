@@ -129,7 +129,7 @@ def mean_pool(vector: torch.LongTensor):
 def get_attn_mask(tokens_tensor: torch.LongTensor) -> torch.tensor:
     return tokens_tensor != 0
 
-def evaluate_batch_retrieval(args, rag_model, questions):
+def evaluate_batch_retrieval(args, rag_model, questions, old_q):
     def strip_title(title):
         if title.startswith('"'):
             title = title[1:]
@@ -137,6 +137,14 @@ def evaluate_batch_retrieval(args, rag_model, questions):
             title = title[:-1]
         return title
 
+    # retriever_input_ids_0 = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
+    #     old_q,
+    #     return_tensors="pt",
+    #     padding=True,
+    #     truncation=True,
+    # )["input_ids"].to(args.device)
+    # question_enc_outputs = rag_model.rag.question_encoder(retriever_input_ids_0)
+    # question_enc_pool_output = question_enc_outputs[0]
 
     inputs_dict = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
         questions, return_tensors="pt", padding=True, truncation=True,
@@ -227,7 +235,7 @@ def evaluate_batch_retrieval(args, rag_model, questions):
     return provenance_strings
 
 
-def evaluate_batch_e2e(args, rag_model, questions):
+def evaluate_batch_e2e(args, rag_model, questions, old_q):
     with torch.no_grad():
         inputs_dict = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
             questions, return_tensors="pt", padding=True, truncation=True,
@@ -435,11 +443,13 @@ def main(args):
             retriever = RagRetriever.from_pretrained(checkpoint, **model_kwargs)
             retriever.config.scoring_func = args.scoring_func
             retriever.config.n_docs = args.n_docs
+            retriever.config.bm25 = args.bm25
             model = model_class.from_pretrained(checkpoint, retriever=retriever, **model_kwargs)
             if bm25:
                 model.bm25 = bm25
             model.config.scoring_func = args.scoring_func
             model.config.n_docs = args.n_docs
+            model.config.bm25 = args.bm25
             model.retriever.init_retrieval()
         else:
             model = model_class.from_pretrained(checkpoint, **model_kwargs)
@@ -451,7 +461,7 @@ def main(args):
                 questions.append(line.strip())
                 if len(questions) == args.eval_batch_size:
                     new_questions = list(tuple(question.split("[SEP]")) for question in questions)
-                    answers = evaluate_batch_fn(args, model, new_questions)
+                    answers = evaluate_batch_fn(args, model, new_questions, questions)
                     preds_file.write("\n".join(answers) + "\n")
                     preds_file.flush()
                     questions = []
