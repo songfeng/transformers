@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import torch
 from tqdm import tqdm
+from datasets import load_metric
 
 from transformers import BartForConditionalGeneration, RagRetriever, RagSequenceForGeneration, RagTokenForGeneration
 from transformers import logging as transformers_logging
@@ -67,8 +68,14 @@ def get_scores(args, preds_path, gold_data_path):
     em = 100.0 * em / total
     f1 = 100.0 * f1 / total
 
-    logger.info(f"F1: {f1:.2f}")
-    logger.info(f"EM: {em:.2f}")
+    metric = load_metric("sacrebleu")
+    metric.add_batch(predictions=hypos, references=answers)
+    sacrebleu = metric.compute()["score"]
+
+    logger.info(f"F1: {f1: .2f}")
+    logger.info(f"EM: {em: .2f}")
+    logger.info(f"sacrebleu: {sacrebleu: .2f}")
+    logger.info(f"all: {f1: .2f} & {em: .2f} & {sacrebleu: .2f} ")
 
 
 def get_precision_at_k(args, preds_path, gold_data_path):
