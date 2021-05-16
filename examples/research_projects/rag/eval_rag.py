@@ -129,7 +129,7 @@ def mean_pool(vector: torch.LongTensor):
 def get_attn_mask(tokens_tensor: torch.LongTensor) -> torch.tensor:
     return tokens_tensor != 0
 
-def evaluate_batch_retrieval(args, rag_model, questions, old_q):
+def evaluate_batch_retrieval(args, rag_model, questions, old_q=None):
     def strip_title(title):
         if title.startswith('"'):
             title = title[1:]
@@ -235,7 +235,7 @@ def evaluate_batch_retrieval(args, rag_model, questions, old_q):
     return provenance_strings
 
 
-def evaluate_batch_e2e(args, rag_model, questions, old_q):
+def evaluate_batch_e2e(args, rag_model, questions):
     with torch.no_grad():
         inputs_dict = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
             questions, return_tensors="pt", padding=True, truncation=True,
@@ -461,7 +461,7 @@ def main(args):
                 questions.append(line.strip())
                 if len(questions) == args.eval_batch_size:
                     new_questions = list(tuple(question.split("[SEP]")) for question in questions)
-                    answers = evaluate_batch_fn(args, model, new_questions, questions)
+                    answers = evaluate_batch_fn(args, model, new_questions)
                     preds_file.write("\n".join(answers) + "\n")
                     preds_file.flush()
                     questions = []
