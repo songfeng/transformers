@@ -25,6 +25,8 @@ logging.basicConfig(level=logging.INFO)
 
 transformers_logging.set_verbosity_info()
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 def get_top_n_indices(bm25, query, n=5):
     query = query.lower().split()
     scores = bm25.get_scores(query)
@@ -398,6 +400,7 @@ def main(args):
     else:
         model_class = BartForConditionalGeneration
 
+    bm25 = None
     if args.bm25:
         bm25 = load_bm25(args.bm25)
 
@@ -421,11 +424,14 @@ def main(args):
         logger.info("***** Running evaluation for {} *****".format(checkpoint))
         logger.info("  Batch size = %d", args.eval_batch_size)
         logger.info("  Predictions will be stored under {}".format(args.predictions_path))
+        logger.info("  Using scoring function {}".format(args.scoring_func))
 
         if args.model_type.startswith("rag"):
             retriever = RagRetriever.from_pretrained(checkpoint, **model_kwargs)
+            retriever.config.scoring_func = args.scoring_func
             model = model_class.from_pretrained(checkpoint, retriever=retriever, **model_kwargs)
-            model.bm25 = bm25
+            if bm25:
+                model.bm25 = bm25
             model.config.scoring_func = args.scoring_func
             model.retriever.init_retrieval()
         else:
@@ -437,12 +443,14 @@ def main(args):
             for line in tqdm(eval_file):
                 questions.append(line.strip())
                 if len(questions) == args.eval_batch_size:
-                    answers = evaluate_batch_fn(args, model, questions)
+                    new_questions = list(tuple(question.split("[SEP]")) for question in questions)
+                    answers = evaluate_batch_fn(args, model, new_questions)
                     preds_file.write("\n".join(answers) + "\n")
                     preds_file.flush()
                     questions = []
             if len(questions) > 0:
-                answers = evaluate_batch_fn(args, model, questions)
+                new_questions = list(tuple(question.split("[SEP]")) for question in questions)
+                answers = evaluate_batch_fn(args, model, new_questions)
                 preds_file.write("\n".join(answers))
                 preds_file.flush()
 

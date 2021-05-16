@@ -99,6 +99,7 @@ class RagConfig(PretrainedConfig):
         n_docs=5,
         bm25=None,
         segmentation="token",
+        max_source_length=128,
         max_combined_length=300,
         multihandle=False,
         scoring_func="linear",

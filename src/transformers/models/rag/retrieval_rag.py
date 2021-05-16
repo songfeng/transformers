@@ -639,12 +639,12 @@ class RagRetriever:
                 #     prefix + doc_title + self.config.title_sep + doc_text + self.config.doc_sep + input_string
                 # ).replace("  ", " ")
                 out = (
-                    prefix + input_string.strip()[: self.config.max_source_length] + self.config.doc_sep + doc_title + self.config.title_sep + doc_text
-                ).replace("  ", " ")
+                    prefix + input_string.strip()[: 128] + self.config.doc_sep + doc_title + self.config.title_sep + doc_text
+                ).replace("  ", " ")   ## replace 128 with self.config.max_source_length
             else:
                 out = (
-                    prefix + input_string.strip()[: self.config.max_source_length] + self.config.doc_sep + doc_text
-                ).replace("  ", " ")
+                    prefix + input_string.strip()[: 128] + self.config.doc_sep + doc_text
+                ).replace("  ", " ")  ## replace 128 with self.config.max_source_length
             return out
 
         rag_input_strings = [
