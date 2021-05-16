@@ -106,6 +106,7 @@ def evaluate_batch_retrieval(args, rag_model, questions):
     question_enc_pool_output = question_enc_outputs[0]
 
     if args.bm25:
+        logger.info("Using BM25 for retrieval")
         doc_ids = []
         doc_scores = []
         for input_string in questions:
