@@ -12,6 +12,8 @@ import torch
 from tqdm import tqdm
 from datasets import load_metric
 
+import pdb
+
 from transformers import BartForConditionalGeneration, RagRetriever, RagSequenceForGeneration, RagTokenForGeneration
 from transformers import logging as transformers_logging
 
@@ -471,7 +473,7 @@ def main(args):
                 preds_file.write("\n".join(answers))
                 preds_file.flush()
 
-            score_fn(args, args.predictions_path, args.gold_data_path)
+        score_fn(args, args.predictions_path, args.gold_data_path)
 
 
 if __name__ == "__main__":
