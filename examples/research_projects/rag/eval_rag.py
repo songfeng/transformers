@@ -7,6 +7,7 @@ import os
 import sys
 
 import pandas as pd
+import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -23,6 +24,12 @@ logging.basicConfig(level=logging.INFO)
 
 transformers_logging.set_verbosity_info()
 
+def get_top_n_indices(bm25, query, n=5):
+    query = query.lower().split()
+    scores = bm25.get_scores(query)
+    scores_i = [(i, score) for i, score in enumerate(scores)]
+    sorted_indices = sorted(scores_i, key=lambda score: score[1], reverse=True)
+    return sorted_indices[:n]
 
 def infer_model_type(model_name_or_path):
     if "token" in model_name_or_path:
@@ -100,11 +107,13 @@ def evaluate_batch_retrieval(args, rag_model, questions):
 
     if args.bm25:
         doc_ids = []
+        doc_scores = []
         for input_string in questions:
-            doc_ids.append(get_top_n_indices(args.bm25, input_string, rag_model.config.n_docs))
+            sorted_indices = get_top_n_indices(rag_model.bm25, input_string, rag_model.config.n_docs)
+            doc_ids.append([x[0] for x in sorted_indices])
+            doc_scores.append([x[-1] for x in sorted_indices])
         all_docs = rag_model.retriever.index.get_doc_dicts(np.array(doc_ids))
     else:
-
         result = rag_model.retriever(
             retriever_input_ids,
             question_enc_pool_output.cpu().detach().to(torch.float32).numpy(),
@@ -112,7 +121,7 @@ def evaluate_batch_retrieval(args, rag_model, questions):
             n_docs=rag_model.config.n_docs,
             return_tensors="pt",
         )
-    all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
+        all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
     provenance_strings = []
     for docs in all_docs:
         provenance = [strip_title(title) for title in docs["title"]]
@@ -164,7 +173,7 @@ def get_args():
     parser.add_argument(
         "--index_name",
         default=None,
-        choices=["exact", "compressed", "legacy"],
+        choices=["custom", "exact", "compressed", "legacy"],
         type=str,
         help="RAG model retriever type",
     )
@@ -173,6 +182,12 @@ def get_args():
         default=None,
         type=str,
         help="Path to the retrieval index",
+    )
+    parser.add_argument(
+        "--passages_path",
+        default=None,
+        type=str,
+        help="Path to the knowledge data",
     )
     parser.add_argument("--n_docs", default=5, type=int, help="Number of retrieved docs")
     parser.add_argument(
@@ -271,6 +286,8 @@ def main(args):
             model_kwargs["index_name"] = args.index_name
         if args.index_path is not None:
             model_kwargs["index_path"] = args.index_path
+        if args.passages_path is not None:
+            model_kwargs["passages_path"] = args.passages_path
     else:
         model_class = BartForConditionalGeneration
 
@@ -301,6 +318,7 @@ def main(args):
         if args.model_type.startswith("rag"):
             retriever = RagRetriever.from_pretrained(checkpoint, **model_kwargs)
             model = model_class.from_pretrained(checkpoint, retriever=retriever, **model_kwargs)
+            model.bm25 = bm25
             model.retriever.init_retrieval()
         else:
             model = model_class.from_pretrained(checkpoint, **model_kwargs)
