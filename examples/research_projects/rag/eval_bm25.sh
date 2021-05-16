@@ -22,7 +22,7 @@ jbsub -cores 4+1 -mem 128g -queue x86_1h -require v100 \
 -err $SFD/logs_eval/eval_re_$config.err \
 python eval_rag.py \
 --model_type $model \
---gold_pid_path $DATA_DIR/$split.pids
+--gold_pid_path $DATA_DIR/$split.pids \
 --passages_path $KB_FOLDER/my_knowledge_dataset \
 --index_path $KB_FOLDER/my_knowledge_dataset_hnsw_index.faiss \
 --bm25 $SFD/data_v2/dd_$task\_$seg\_two/doc2dial_$seg.csv \

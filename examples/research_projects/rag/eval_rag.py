@@ -121,6 +121,11 @@ def get_precision_at_k(args, preds_path, gold_data_path):
     logger.info(f"Pid_Prec@10: {r_10_p: .2f}")
     logger.info(f"all: {r_1: .2f} & {r_5: .2f} & {r_10: .2f}  & {r_1_p: .2f} & {r_5_p: .2f} & {r_10_p: .2f} & ")
 
+def mean_pool(vector: torch.LongTensor):
+    return vector.sum(axis=0) / vector.shape[0]
+
+def get_attn_mask(tokens_tensor: torch.LongTensor) -> torch.tensor:
+    return tokens_tensor != 0
 
 def evaluate_batch_retrieval(args, rag_model, questions):
     def strip_title(title):
@@ -130,15 +135,50 @@ def evaluate_batch_retrieval(args, rag_model, questions):
             title = title[:-1]
         return title
 
-    retriever_input_ids = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
-        questions,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-    )["input_ids"].to(args.device)
 
-    question_enc_outputs = rag_model.rag.question_encoder(retriever_input_ids)
-    question_enc_pool_output = question_enc_outputs[0]
+    inputs_dict = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
+        questions, return_tensors="pt", padding=True, truncation=True,
+        add_special_tokens=True, return_token_type_ids=True
+    )
+
+    retriever_input_ids = inputs_dict.input_ids.to(args.device)
+    token_type_ids = inputs_dict.token_type_ids.to(args.device)
+    attention_mask = inputs_dict.attention_mask.to(args.device)
+
+    dpr_out = rag_model.rag.question_encoder(retriever_input_ids, attention_mask=attention_mask, return_dict=True)
+    combined_out = dpr_out.pooler_output
+
+    ## Get mask for current turn input ids
+    curr_turn_mask = torch.logical_xor(attention_mask, token_type_ids)
+    current_turn_input_ids = retriever_input_ids * curr_turn_mask
+    current_turn_only_out = rag_model.rag.question_encoder(current_turn_input_ids, attention_mask=curr_turn_mask.long(),
+                                                  return_dict=True)
+    current_turn_output = current_turn_only_out.pooler_output
+
+    ## Split the dpr sequence output
+    sequence_output = dpr_out.last_hidden_state
+    attn_mask = get_attn_mask(retriever_input_ids)
+    ## Split sequence output, and pool each sequence
+    seq_out_0 = []  # last turn, if query; doc structure if passage
+    seq_out_1 = []  # dial history, if query; passage text if passage
+    dialog_lengths = []
+    for i in range(sequence_output.shape[0]):
+        seq_out_masked = sequence_output[i, attn_mask[i], :]
+        segment_masked = token_type_ids[i, attn_mask[i]]
+        seq_out_masked_0 = seq_out_masked[segment_masked == 0, :]
+        seq_out_masked_1 = seq_out_masked[segment_masked == 1, :]
+        dialog_lengths.append((len(seq_out_masked_0), len(seq_out_masked_1)))
+        ### perform pooling
+        seq_out_0.append(mean_pool(seq_out_masked_0))
+        seq_out_1.append(mean_pool(seq_out_masked_1))
+
+    pooled_output_0 = torch.cat([seq.view(1, -1) for seq in seq_out_0], dim=0)
+    pooled_output_1 = torch.cat([seq.view(1, -1) for seq in seq_out_1], dim=0)
+
+    if args.scoring_func in ['reranking_original', 'current_original']:
+        current_out = current_turn_output
+    else:
+        current_out = pooled_output_0
 
     if args.bm25:
         logger.info("Using BM25 for retrieval")
@@ -149,12 +189,27 @@ def evaluate_batch_retrieval(args, rag_model, questions):
             doc_ids.append([x[0] for x in sorted_indices])
             doc_scores.append([x[-1] for x in sorted_indices])
         all_docs = rag_model.retriever.index.get_doc_dicts(np.array(doc_ids))
+    elif args.scoring_func != "original":
+        result = rag_model.retriever(
+            retriever_input_ids,
+            combined_out.cpu().detach().to(torch.float32).numpy(),
+            current_out.cpu().detach().to(torch.float32).numpy(),
+            pooled_output_1.cpu().detach().to(torch.float32).numpy(),
+            prefix=rag_model.rag.generator.config.prefix,
+            n_docs=rag_model.config.n_docs,
+            dialog_lengths=dialog_lengths,
+            return_tensors="pt",
+        )
+        all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
     else:
         result = rag_model.retriever(
             retriever_input_ids,
-            question_enc_pool_output.cpu().detach().to(torch.float32).numpy(),
+            combined_out.cpu().detach().to(torch.float32).numpy(),
+            combined_out.cpu().detach().to(torch.float32).numpy(),  ## sending dummy
+            combined_out.cpu().detach().to(torch.float32).numpy(),  ## sending dummy
             prefix=rag_model.rag.generator.config.prefix,
             n_docs=rag_model.config.n_docs,
+            dialog_lengths=dialog_lengths,
             return_tensors="pt",
         )
         all_docs = rag_model.retriever.index.get_doc_dicts(result.doc_ids)
@@ -168,14 +223,17 @@ def evaluate_batch_retrieval(args, rag_model, questions):
 def evaluate_batch_e2e(args, rag_model, questions):
     with torch.no_grad():
         inputs_dict = rag_model.retriever.question_encoder_tokenizer.batch_encode_plus(
-            questions, return_tensors="pt", padding=True, truncation=True
+            questions, return_tensors="pt", padding=True, truncation=True,
+            add_special_tokens=True, return_token_type_ids=True
         )
 
         input_ids = inputs_dict.input_ids.to(args.device)
+        token_type_ids = inputs_dict.token_type_ids.to(args.device)
         attention_mask = inputs_dict.attention_mask.to(args.device)
         outputs = rag_model.generate(  # rag_model overwrites generate
             input_ids,
             attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
             num_beams=args.num_beams,
             min_length=args.min_length,
             max_length=args.max_length,
@@ -194,6 +252,12 @@ def evaluate_batch_e2e(args, rag_model, questions):
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--scoring_func",
+        default="original",
+        type=str,
+        help="different scoring function, `original`, `linear`, `nonlinear`, `reranking`",
+    )
     parser.add_argument(
         "--bm25",
         type=str,
@@ -362,6 +426,7 @@ def main(args):
             retriever = RagRetriever.from_pretrained(checkpoint, **model_kwargs)
             model = model_class.from_pretrained(checkpoint, retriever=retriever, **model_kwargs)
             model.bm25 = bm25
+            model.config.scoring_func = args.scoring_func
             model.retriever.init_retrieval()
         else:
             model = model_class.from_pretrained(checkpoint, **model_kwargs)
