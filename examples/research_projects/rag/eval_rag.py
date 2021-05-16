@@ -434,10 +434,12 @@ def main(args):
         if args.model_type.startswith("rag"):
             retriever = RagRetriever.from_pretrained(checkpoint, **model_kwargs)
             retriever.config.scoring_func = args.scoring_func
+            retriever.config.n_docs = args.n_docs
             model = model_class.from_pretrained(checkpoint, retriever=retriever, **model_kwargs)
             if bm25:
                 model.bm25 = bm25
             model.config.scoring_func = args.scoring_func
+            model.config.n_docs = args.n_docs
             model.retriever.init_retrieval()
         else:
             model = model_class.from_pretrained(checkpoint, **model_kwargs)

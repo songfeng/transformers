@@ -368,8 +368,8 @@ class HFIndexBase(Index):
                 if ele not in ids_new:
                     ids_new.append(ele)
                     scores_new.append(scores3[r][ii])
-            ids.append(ids_new[:5])
-            scores.append(scores_new[:5])
+            ids.append(ids_new[:n_docs])
+            scores.append(scores_new[:n_docs])
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
