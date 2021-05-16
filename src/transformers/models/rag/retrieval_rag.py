@@ -647,7 +647,6 @@ class RagRetriever:
                 ).replace("  ", " ")  ## replace 128 with self.config.max_source_length
             return out
 
-        pdb.set_trace()
         rag_input_strings = [
             cat_input_and_doc(
                 docs[i]["title"][j],
