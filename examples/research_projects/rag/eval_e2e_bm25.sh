@@ -3,7 +3,6 @@ seg=token
 task=grounding
 split=test
 score=original
-# dpr=dpr_bi_$seg
 dpr=dpr_new
 format=two
 model=rag_token
@@ -15,7 +14,7 @@ DATA_DIR=$SFD/data_v2/dd_$task\_$seg\_$format
 KB_FOLDER=$SFD/data_v2/dd_knowledge_dataset-$seg-$dpr
 FD=/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints
 MODEL_PATH=$FD/dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-bm25/$checkpoint
-config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-bm25/$checkpoint
+config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-bm25-$checkpoint
 
 jbsub -cores 4+1 -mem 256g -queue x86_1h -require v100 \
 -out $SFD/logs_eval/eval_e2e_$config.out \
