@@ -73,18 +73,46 @@ def get_scores(args, preds_path, gold_data_path):
 
 def get_precision_at_k(args, preds_path, gold_data_path):
     k = args.k
-    hypos = [line.strip() for line in open(preds_path, "r").readlines()]
+    hypos = [line.strip().split("####")[0] for line in open(preds_path, "r").readlines()]
+    hypos_pid = [line.strip().split("####")[-1] for line in open(preds_path, "r").readlines()]
     references = [line.strip() for line in open(gold_data_path, "r").readlines()]
+    pids = [line.strip().split("\t") for line in open(args.gold_pid_path, "r").readlines()]
 
-    em = total = 0
+    r_1 = r_5 = r_10 = em = total = 0
     for hypo, reference in zip(hypos, references):
         hypo_provenance = set(hypo.split("\t")[:k])
         ref_provenance = set(reference.split("\t"))
         total += 1
         em += len(hypo_provenance & ref_provenance) / k
+        r_1 += int(bool(set(hypo.split("\t")[:1]) & ref_provenance))
+        r_5 += int(bool(set(hypo.split("\t")[:5]) & ref_provenance))
+        r_10 += int(bool(set(hypo.split("\t")[:10]) & ref_provenance))
+    r_1 = 100.0 * r_1 / total
+    r_5 = 100.0 * r_5 / total
+    r_10 = 100.0 * r_10 / total
+    # logger.info(f"Doc_Prec@{k}: {em: .2f}")
+    # logger.info(f"Doc_Prec@{1}: {r_1: .2f}")
+    logger.info(f"Doc_Prec@1: {r_1: .2f}")
+    logger.info(f"Doc_Prec@5: {r_5: .2f}")
+    logger.info(f"Doc_Prec@10: {r_10: .2f}")
 
-    em = 100.0 * em / total
-    logger.info(f"Precision@{k}: {em: .2f}")
+    r_1_p = r_5_p = r_10_p = total = 0
+    for hypo, reference in zip(hypos_pid, pids):
+        hypo = hypo.split("\t")
+        # hypo_provenance = set(hypo)
+        ref_provenance = set(reference)
+        total += 1
+        # em += len([r for r in reference if r in hypo_provenance]) == len(reference)
+        r_1_p += int(bool(set(hypo[:1]) & ref_provenance))
+        r_5_p += int(bool(set(hypo[:5]) & ref_provenance))
+        r_10_p += int(bool(set(hypo[:10]) & ref_provenance))
+    r_1_p = 100.0 * r_1_p / total
+    r_5_p = 100.0 * r_5_p / total
+    r_10_p = 100.0 * r_10_p / total
+    logger.info(f"Pid_Prec@5: {r_1_p: .2f}")
+    logger.info(f"Pid_Prec@5: {r_5_p: .2f}")
+    logger.info(f"Pid_Prec@10: {r_10_p: .2f}")
+    logger.info(f"all: {r_1: .2f} & {r_5: .2f} & {r_10: .2f}  & {r_1_p: .2f} & {r_5_p: .2f} & {r_10_p: .2f} & ")
 
 
 def evaluate_batch_retrieval(args, rag_model, questions):
@@ -215,6 +243,13 @@ def get_args():
     )
     parser.add_argument(
         "--gold_data_path",
+        default=None,
+        type=str,
+        required=True,
+        help="Path to a tab-separated file with gold samples",
+    )
+    parser.add_argument(
+        "--gold_pid_path",
         default=None,
         type=str,
         required=True,
