@@ -2,7 +2,7 @@ checkpoint="checkpoint10"
 seg=token
 task=grounding
 split=test
-score=-original
+score=original
 # dpr=dpr_bi_$seg
 dpr=dpr_new
 format=two
@@ -11,11 +11,11 @@ topn=5
 sourcelen=128
 targetlen=50
 SFD=/dccstor/dialog/sfeng/projects/transformers_dialdoc
-DATA_DIR=data_v2/dd_$task\_$seg\_$format
-KB_FOLDER=data_v2/dd_knowledge_dataset-$seg-$dpr
+DATA_DIR=$SFD/data_v2/dd_$task\_$seg\_$format
+KB_FOLDER=$SFD/data_v2/dd_knowledge_dataset-$seg-$dpr
 FD=/dccstor/dialog/sfeng/transformers_doc2dial/checkpoints
-MODEL_PATH=$FD/dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr$score/$checkpoint
-config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr$score-$split-$checkpoint-bm25
+MODEL_PATH=$FD/dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-bm25/$checkpoint
+config=dd-$seg-$task-$sourcelen-$targetlen-$format-$dpr-$score-bm25/$checkpoint
 
 jbsub -cores 4+1 -mem 256g -queue x86_1h -require v100 \
 -out $SFD/logs_eval/eval_e2e_$config.out \
@@ -30,10 +30,11 @@ python eval_rag.py \
 --eval_mode e2e \
 --evaluation_set $DATA_DIR/$split.source \
 --gold_data_path $DATA_DIR/$split.target \
---gold_pid_path $DATA_DIR/$split.pids \
 --gold_data_mode ans \
 --eval_batch_size 15 \
 --recalculate \
-# --eval_all_checkpoints \
---predictions_path $SFD/results/eval-$config-e2e.txt 
+--predictions_path $SFD/results/eval-$config-e2e.txt
+#--gold_pid_path $DATA_DIR/$split.pids \
+#--eval_all_checkpoints \
+
 
